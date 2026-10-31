@@ -214,7 +214,7 @@ static bool r2_valid(const uint8_t b[16])
 
 bool sd_identify(void)
 {
-    uint32_t r[4];
+    uint32_t r[4] = {0};
 
     card.ready = false;
     command(CMD0, 0, NULL);

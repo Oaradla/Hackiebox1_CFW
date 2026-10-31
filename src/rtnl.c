@@ -41,6 +41,8 @@ static bool in_isr(void)
     uint32_t ipsr;
     __asm volatile("mrs %0, ipsr" : "=r"(ipsr));
     return (ipsr & 0x1FF) != 0;
+#elif defined(ESP_PLATFORM)
+    return xPortInIsrContext();
 #else
     return false;
 #endif
@@ -898,8 +900,8 @@ void log_start(uint8_t mac_last_byte)
 {
     /* Worst case 2416 B (make stackcheck): remote command 64 storing a file
      * (command frame of 320 B, ext.c, FatFs, SD), +25 %. */
-    static StackType_t stack[TASK_STACK(848)];
+    static StackType_t stack[TASK_STACK(848) + TLS_STACK];
     static StaticTask_t tcb;
     mac_last = mac_last_byte;
-    log_task = xTaskCreateStatic(task, "rtnl", TASK_STACK(848), NULL, 2, stack, &tcb);
+    log_task = xTaskCreateStatic(task, "rtnl", TASK_STACK(848) + TLS_STACK, NULL, 2, stack, &tcb);
 }

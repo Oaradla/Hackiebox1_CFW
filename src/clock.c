@@ -3,14 +3,32 @@
  */
 #include <stdbool.h>
 #include <stdint.h>
+#include "port.h"
 #include "clock.h"
 #include "tick.h"
 
 static volatile uint32_t base; /* Unix seconds at tick 0 */
 
+/* Seconds since the start, also past the wrap of the millisecond tick
+ * after 49.7 days. */
+static uint32_t uptime_s(void)
+{
+    static uint32_t last, wrapped;
+    CRITICAL_ENTER();
+    uint32_t t = tick_ms();
+    if (t < last)
+    {
+        wrapped += 4294967u;
+    }
+    last = t;
+    uint32_t s = wrapped + t / 1000;
+    CRITICAL_EXIT();
+    return s;
+}
+
 bool clock_set(uint32_t unix)
 {
-    uint32_t up = tick_ms() / 1000;
+    uint32_t up = uptime_s();
     if (unix <= up)
     {
         return false;
@@ -21,12 +39,12 @@ bool clock_set(uint32_t unix)
 
 bool clock_valid(uint32_t unix)
 {
-    return unix > tick_ms() / 1000;
+    return unix > uptime_s();
 }
 
 uint32_t clock_now(void)
 {
-    return base + tick_ms() / 1000;
+    return base + uptime_s();
 }
 
 /* Days since 1970-01-01 of a proleptic Gregorian date and back. */

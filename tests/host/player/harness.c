@@ -218,7 +218,7 @@ void cloud_content(const uint8_t uid[8], const uint8_t *t, uint32_t o, uint32_t 
     if (m && !strncmp(m, "dl:", 3))
     {
         char cmd[1200];
-        snprintf(cmd, sizeof cmd, "cp %s %s/CONTENT/B706EE0E/500304E0", m + 3, root);
+        snprintf(cmd, sizeof cmd, "cp %s %s/CONTENT/D4C3B2A1/500304E0", m + 3, root);
         if (system(cmd))
         {
             abort();
@@ -497,7 +497,7 @@ typedef struct
 } step_t;
 static step_t *script;
 static unsigned script_n, script_i;
-static const uint8_t uid[8] = {0xB7, 0x06, 0xEE, 0x0E, 0x50, 0x03, 0x04, 0xE0};
+static const uint8_t uid[8] = {0xD4, 0xC3, 0xB2, 0xA1, 0x50, 0x03, 0x04, 0xE0};
 static const uint8_t uid_event[8] = {0x11, 0x22, 0x33, 0x44, 0x50, 0x03, 0x04, 0xE0};
 static const uint8_t uid_other[8] = {0xC1, 0xC2, 0xC3, 0xC4, 0x50, 0x03, 0x04, 0xE0};
 static const uint8_t token[32];

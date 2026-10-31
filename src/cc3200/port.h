@@ -22,6 +22,9 @@
 #define TASK_STACK(words) (words)
 /* The least free stack a task has had, in 32-bit words. */
 #define TASK_STACK_FREE_WORDS(task) uxTaskGetStackHighWaterMark(task)
+/* Added to the stack of a task that opens TLS connections: none, TLS runs
+ * in the network processor. */
+#define TLS_STACK 0u
 
 /* A short critical section between activities (not from an interrupt). */
 #define CRITICAL_ENTER() taskENTER_CRITICAL()

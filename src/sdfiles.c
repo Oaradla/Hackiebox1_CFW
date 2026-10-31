@@ -164,7 +164,7 @@ void sd_delete_content(void)
         strcpy(path, trees[i]);
         delete_tree(path, 0);
     }
-    debug_printf("sd: content, trash and extension files deleted\n");
+    debug_printf("sd: content files deleted\n");
 }
 
 static uint32_t free_clusters(uint32_t *total)

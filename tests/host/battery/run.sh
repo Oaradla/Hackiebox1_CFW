@@ -5,7 +5,7 @@ set -e
 cd "$(dirname "$0")/../../.."
 B=build/host/battery
 mkdir -p $B
-gcc -fsanitize=address,undefined -g -O1 -Wall -Wno-unused-function -Uunix -Itests/host/player/inc -Itests/host/inc -Isrc -Isrc/cc3200 -o $B/battery_test tests/host/battery/harness.c
+gcc -fsanitize=address,undefined -fno-sanitize-recover=all -g -O1 -Wall -Wno-unused-function -Uunix -Itests/host/player/inc -Itests/host/inc -Isrc -Isrc/cc3200 -o $B/battery_test tests/host/battery/harness.c
 $B/battery_test
 for c in "2 5 0" "2 5 1" "0 0 0" "0 0 1" "0 1440 1"; do
     $B/battery_test idle $c

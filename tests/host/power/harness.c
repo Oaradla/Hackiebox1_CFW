@@ -35,6 +35,7 @@ static int failures;
 
 static uint32_t sim_ms = 5000;
 uint32_t tick_ms(void) { return sim_ms; }
+void vTaskDelay(uint32_t t) { sim_ms += t; }
 void debug_printf(const char *f, ...)
 {
     va_list a;
@@ -278,6 +279,12 @@ int main(int argc, char **argv)
     have_content = false;
     journal_load();
     CHECK(!journal_content(u) && flash_len < 0, "8 bytes with length 12 ignored and deleted");
+
+    printf("T clock across the tick wrap\n");
+    sim_ms = 0xFFFFF000u;
+    uint32_t before = clock_now();
+    sim_ms = 3000;
+    CHECK(clock_now() == before + 7, "time runs on after the 32-bit tick wraps");
 
     printf("%s\n", failures ? "power: FAILURES" : "power: all ok");
     return failures != 0;

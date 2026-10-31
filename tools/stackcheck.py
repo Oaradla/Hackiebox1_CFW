@@ -42,13 +42,15 @@ def label(a):
 
 # frame sizes: (source file, name) -> bytes; the LTO link's files last, so
 # that they replace stale ones of earlier builds without LTO
-frame = {}
+frame, dynamic = {}, set()
 sus = [s for s in glob.glob(builddir + "/**/*.su", recursive=True) if "/lto/" not in s]
 for su in sus + sorted(glob.glob(builddir + "/lto/*.su")):
     for line in open(su):
         loc, size, kind = line.rstrip("\n").split("\t")
         parts = loc.split(":")
         frame[(parts[0], parts[-1])] = int(size)
+        if "dynamic" in kind:
+            dynamic.add(base(parts[-1]))
 by_su_name = {}
 for (f, n), s in frame.items():
     by_su_name.setdefault(n, []).append(s)
@@ -67,6 +69,7 @@ vla = {
     "bands.o:quant_band": 704,
     "bands.o:deinterleave_hadamard": 352, "bands.o:interleave_hadamard": 352,
     "alg_unquant": 704,
+    "decode_pulses": 4 * (128 + 2),
     "compute_allocation": 336,
     "clt_mdct_backward": 3840,
     "celt_decoder.o:celt_decode_lost": 7680 + 3840,
@@ -143,4 +146,5 @@ for entry in [a for a in sys.argv[3:] if "," not in a]:
     print(f"{entry}: {d} bytes ({(d+3)//4} words)")
     print("   " + " > ".join(p[:40]))
 
+print("dynamic frames without a VLA entry:", " ".join(sorted({label(a) for a in funcs if base(funcs[a][0]) in dynamic and not vla_of(a)})))
 print("functions with indirect calls:", " ".join(sorted(label(a) for a in indirect)))

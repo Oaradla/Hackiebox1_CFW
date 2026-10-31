@@ -220,19 +220,31 @@ int main(int argc, char **argv)
     run(122000);
     CHECK(rec_n == before + 4 && (rec_args[before + 3][1] & 8) && prompt_n == 0, "reported as implausible, no prompt");
 
-    printf("B6 critical battery: prompt 9, off after it, content not started again\n");
+    printf("B6 one critical value under load: measured again after 5 s, not off\n");
     battery_mv = 3590;
+    run(122000);
+    unsigned n = rec_n;
+    battery_mv = 3800;
+    run(5000);
+    CHECK(rec_n == n + 1 && prompt_n == 0 && !power_critical_pending(), "second measurement, no prompt");
+
+    printf("B7 critical battery: prompt 9, off after it, content not started again\n");
+    battery_mv = 3590;
+    volatile bool prompt_ended = false;
     if (!setjmp(off))
     {
         run(122000);
+        CHECK(prompt_n == 0, "first critical value: no prompt yet");
+        run(5000);
         CHECK(prompt_n == 1 && prompts[0] == 9 && power_critical_pending(), "prompt 9, power-off pending");
         CHECK((rec_args[rec_n - 1][1] & 4) != 0, "reported with the critical flag");
         run(1000); /* prompt 9 still playing */
         CHECK(!went_off, "not while the prompt plays");
         busy = false;
+        prompt_ended = true;
         run(3000);
     }
-    CHECK(went_off, "off once the prompt has ended");
+    CHECK(went_off && prompt_ended, "off once the prompt has ended");
     printf("%d failure(s)\n", failures);
     return failures != 0;
 }

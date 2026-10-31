@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,6 +37,7 @@
 #include "ext.h"
 #include "handover.h"
 #include "net.h"
+#include "panic.h"
 #include "port.h"
 #include "sha256.h"
 #include "sound.h"
@@ -60,6 +62,7 @@ typedef struct
     uint8_t last_result;
     uint8_t reserved;
     uint32_t rolled_back;
+    uint32_t confirmed_build; /* build number of the confirmed image, 0 unknown */
 } slots_t;
 
 static slots_t st;
@@ -199,21 +202,39 @@ void slots_start(void)
     running = r && r->subtype >= ESP_PARTITION_SUBTYPE_APP_OTA_0 && r->subtype <= ESP_PARTITION_SUBTYPE_APP_OTA_2
                   ? (uint8_t)(r->subtype - ESP_PARTITION_SUBTYPE_APP_OTA_0)
                   : NONE;
-    if (nvsfile_read("slots", 0, &st, sizeof st) != (long)sizeof st || st.version != 1)
+    long n = nvsfile_read("slots", 0, &st, sizeof st);
+    if (n == (long)offsetof(slots_t, confirmed_build))
+    {
+        st.confirmed_build = 0; /* stored before the build was kept */
+    }
+    else if (n != (long)sizeof st)
+    {
+        st.version = 0;
+    }
+    if (st.version != 1)
     {
         memset(&st, NONE, sizeof st);
         st.version = 1;
         st.tries = 0;
         st.last_result = 0;
         st.rolled_back = 0;
+        st.confirmed_build = 0;
     }
     if (st.original == NONE)
     {
         st.original = find_original(); /* first start */
     }
-    if (running == NONE || (st.confirmed == running && st.trial != running))
+    /* the original firmware can have installed another image into the
+     * confirmed slot */
+    bool same = st.confirmed == running && (!st.confirmed_build || st.confirmed_build == CFW_BUILD_TIME);
+    if (running == NONE || (same && st.trial != running))
     {
         trial_pending = false;
+        if (running != NONE)
+        {
+            /* a slot selected by a rollback is still marked new */
+            esp_ota_mark_app_valid_cancel_rollback();
+        }
     }
     else
     {
@@ -392,6 +413,7 @@ bool bootstate_confirm(void)
         return false;
     }
     st.confirmed = running;
+    st.confirmed_build = CFW_BUILD_TIME;
     st.trial = NONE;
     st.tries = 0;
     st.last_result = 1;
@@ -427,7 +449,7 @@ void bootstate_trial_poll(bool joined)
 {
     static bool ever_joined;
     const uint8_t hw = 1u << BOOT_CHECK_CARD | 1u << BOOT_CHECK_CODEC | 1u << BOOT_CHECK_READER;
-    if (!trial_pending)
+    if (!trial_pending || fault_active()) /* not while a panic is handled */
     {
         return;
     }
@@ -660,6 +682,7 @@ update_result_t update_finish(void)
     {
         bootstate_trial((uint8_t)slot);
     }
+    rtc_tries[0] = 0; /* the next start counts from one */
     restart_pending = true;
     debug_printf("update: slot %u selected, restart follows\n", slot);
     return UPDATE_INSTALLED;

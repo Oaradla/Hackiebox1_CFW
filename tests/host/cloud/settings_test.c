@@ -19,6 +19,10 @@ static int failures;
             printf("  ok: " __VA_ARGS__);   \
         printf("\n");                       \
     } while (0)
+void vTaskDelay(TickType_t t)
+{
+    (void)t;
+}
 void debug_printf(const char *f, ...)
 {
     va_list a;

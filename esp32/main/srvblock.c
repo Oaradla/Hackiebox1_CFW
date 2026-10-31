@@ -115,12 +115,18 @@ void srvblock_apply(void)
     text[0] = 0;
     if (f_open(&f, CONFIG, FA_READ) == FR_OK)
     {
-        if (f_read(&f, text, 1024, &n) != FR_OK)
+        bool long_file = f_size(&f) > 1024;
+        if (long_file || f_read(&f, text, 1024, &n) != FR_OK)
         {
             n = 0;
         }
         f_close(&f);
         text[n] = 0;
+        if (long_file)
+        {
+            debug_printf("srvblock: " CONFIG " longer than 1024 B, left alone\n");
+            return;
+        }
     }
     strcpy(check, text);
     if (has_host_line(text) && !cloud_config_check(check))

@@ -13,10 +13,12 @@
 #include "task.h"
 #include "ff.h"
 #include "bootstate.h"
+#include "cloud.h"
 #include "crc32.h"
 #include "debug.h"
 #include "ext.h"
 #include "handover.h"
+#include "panic.h"
 #include "tick.h"
 
 #define CONFIG_DIR "/revvox/boot"
@@ -29,8 +31,8 @@ static bool confirmed;
  * NGCFG~1.JSO; the box, which knows short names only, looks for that. */
 static bool config_open(FIL *f)
 {
-    static DIR d;
-    static FILINFO fi;
+    DIR d;
+    FILINFO fi;
     char name[32];
     bool found = false;
     if (f_opendir(&d, CONFIG_DIR) != FR_OK)
@@ -53,7 +55,7 @@ static bool config_open(FIL *f)
  * configuration is never written. */
 static bool state_path(char *path, unsigned size)
 {
-    static FIL f;
+    FIL f;
     char buf[64];
     UINT n;
     unsigned matched = 0, len = 0;
@@ -135,7 +137,7 @@ static bool valid(const uint8_t s[32])
 
 bool bootstate_read(uint8_t s[32])
 {
-    static FIL f;
+    FIL f;
     char path[64];
     UINT n = 0;
     if (!handover_get()->valid || !state_path(path, sizeof path) || f_open(&f, path, FA_READ) != FR_OK)
@@ -152,7 +154,7 @@ bool bootstate_read(uint8_t s[32])
  * effect. */
 static bool update(void (*change)(uint8_t s[32], uint8_t arg), uint8_t arg)
 {
-    static FIL f;
+    FIL f;
     char path[64];
     uint8_t s[32];
     UINT n = 0;
@@ -261,7 +263,7 @@ void bootstate_trial_poll(bool joined)
 {
     static bool ever_joined;
     const uint8_t hw = 1u << BOOT_CHECK_CARD | 1u << BOOT_CHECK_CODEC | 1u << BOOT_CHECK_READER;
-    if (!bootstate_trial_pending())
+    if (!bootstate_trial_pending() || fault_active()) /* not while a panic is handled */
     {
         return;
     }
@@ -271,7 +273,10 @@ void bootstate_trial_poll(bool joined)
     {
         restart_unconfirmed("hardware check failed");
     }
-    if ((checks_ok & hw) == hw && ((checks_ok & 1u << BOOT_CHECK_TIME) || (now >= 60000u && !ever_joined)))
+    /* without a server configuration the join counts as the
+     * time request. */
+    bool time_ok = (checks_ok & 1u << BOOT_CHECK_TIME) || (ever_joined && !cloud_configured());
+    if ((checks_ok & hw) == hw && (time_ok || (now >= 60000u && !ever_joined)))
     {
         if (!bootstate_confirm())
         {

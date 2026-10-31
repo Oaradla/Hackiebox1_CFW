@@ -4,5 +4,5 @@
 set -e
 cd "$(dirname "$0")/../../.."
 B=build/host; mkdir -p $B
-gcc -fsanitize=address,undefined -g -O1 -Wall -Wextra -Itests/host/inc -Isrc -Isrc/cc3200 -o $B/setup_test tests/host/setup/setup_test.c src/setup.c
+gcc -fsanitize=address,undefined -fno-sanitize-recover=all -g -O1 -Wall -Wextra -Itests/host/inc -Isrc -Isrc/cc3200 -o $B/setup_test tests/host/setup/setup_test.c src/setup.c
 $B/setup_test

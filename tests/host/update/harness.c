@@ -40,6 +40,8 @@ static int failures;
 static uint32_t sim_ms;
 void vTaskDelay(TickType_t t) { sim_ms += t; }
 uint32_t tick_ms(void) { return sim_ms; }
+static bool configured = true;
+bool cloud_configured(void) { return configured; }
 void debug_printf(const char *f, ...)
 {
     va_list a;
@@ -62,6 +64,7 @@ bool sound_park(uint32_t ms)
     return true;
 }
 void net_shutdown(void) {}
+bool fault_active(void) { return false; }
 static int trial_confirmations;
 void ext_trial_confirmed(void) { trial_confirmations++; }
 
@@ -362,12 +365,19 @@ int main(int argc, char **argv)
     state(s);
     CHECK(s[5] == 4, "reader not reported yet: not confirmed");
     bootstate_report(BOOT_CHECK_READER, true);
-    bootstate_trial_poll(false);
+    bootstate_trial_poll(true);
     state(s);
-    CHECK(s[4] == 4 && s[5] == 255 && s[6] == 0 && s[7] == 0 && s[9] == 1, "confirmed after 60 s without Wi-Fi: active cfw2, result 1");
+    CHECK(s[5] == 4, "joined with a server configuration: waits for the time");
+    configured = false;
+    bootstate_trial_poll(true);
+    state(s);
+    CHECK(s[4] == 4 && s[5] == 255 && s[6] == 0 && s[7] == 0 && s[9] == 1, "confirmed by the join without server configuration: active cfw2, result 1");
     CHECK(trial_confirmations == 1, "the hello answer learns of the confirmation");
     CHECK(!bootstate_trial_pending(), "no trial pending");
     CHECK(update_free_slot() == 1, "running cfw2: slot 1 (cfw1 has the marker)");
+    ho.slot = 3;
+    CHECK(update_free_slot() == 3, "cfw1 chosen by hand, active cfw2: slot 3");
+    ho.slot = 4;
 
     printf("T no free slot\n");
     ho.slot = 3;

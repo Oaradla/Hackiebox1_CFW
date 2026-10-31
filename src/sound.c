@@ -36,6 +36,7 @@ typedef struct
 {
     uint8_t kind;
     uint8_t arg;
+    uint16_t results; /* REQ_FEEDBACK */
 } request_t;
 
 static const int8_t curve_speaker[16] = {-40, -37, -34, -31, -28, -25, -22, -18,
@@ -74,8 +75,6 @@ static volatile uint8_t ext_limit[3] = {0xFF, 0xFF, 0xFF};
 /* Read by the player: steps, the selected path, ear steps made. */
 static volatile uint8_t pub_step[3] = {0, 8, 8}, pub_limit[3] = {0, 15, 15}, pub_path;
 static volatile uint32_t ear_steps;
-static volatile uint16_t fb_results;
-static volatile uint8_t fb_count;
 static bool preset;
 static uint8_t preset_step[2];
 static StaticSemaphore_t unmuted_mem, headset_mem, parked_mem;
@@ -206,12 +205,12 @@ static void fade_to(unsigned s)
     {
         return;
     }
-    unsigned k = s / 16;
-    if (k > 15)
-    {
-        k = 15, s = 240;
-    }
     path_volume_t *v = &st.vol[st.path];
+    if (s > 16u * v->limit)
+    {
+        s = 16u * v->limit; /* a limit lowered during the fade */
+    }
+    unsigned k = s / 16;
     v->step = (uint8_t)k;
     int g = gain_of(st.path, (int)k), half = 2 * g;
     if (k < 15)
@@ -375,7 +374,7 @@ static void task(void *arg)
         }
         if (r.kind == REQ_FEEDBACK && !parked && st.configured && st.path != PATH_PARKED)
         {
-            tones_play_feedback(fb_results, fb_count, st.vol[st.path].step, gain_current, reconcile_stream);
+            tones_play_feedback(r.results, r.arg, st.vol[st.path].step, gain_current, reconcile_stream);
         }
         if (st.configured && !parked && codec_lost())
         {
@@ -411,7 +410,7 @@ static void task(void *arg)
 
 static void post(uint8_t kind, uint8_t arg)
 {
-    request_t r = {kind, arg};
+    request_t r = {kind, arg, 0};
     xQueueSend(queue, &r, 0);
 }
 
@@ -481,7 +480,7 @@ void sound_limits_changed(void)
 
 void sound_stream_from_isr(bool playing)
 {
-    request_t r = {REQ_WAKE, 0};
+    request_t r = {REQ_WAKE, 0, 0};
     BaseType_t woken = pdFALSE;
     want_unmuted = playing;
     xQueueSendFromISR(queue, &r, &woken);
@@ -539,9 +538,8 @@ void sound_fade(unsigned sixteenths)
 
 void sound_feedback(uint16_t results, unsigned n)
 {
-    fb_results = results;
-    fb_count = (uint8_t)(n > 16 ? 16 : n);
-    post(REQ_FEEDBACK, 0);
+    request_t r = {REQ_FEEDBACK, (uint8_t)(n > 16 ? 16 : n), results};
+    xQueueSend(queue, &r, 0);
 }
 
 unsigned sound_path(void)

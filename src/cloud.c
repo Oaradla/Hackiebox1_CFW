@@ -312,6 +312,8 @@ static void config_read(void)
     FIL f;
     UINT n = 0;
     const char *why = "missing";
+    /* a save cut off between the delete and the rename of the new file */
+    f_rename("/cfw/config.tmp", "/cfw/config.txt");
     if (f_open(&f, "/cfw/config.txt", FA_READ) == FR_OK)
     {
         why = f_size(&f) > 1024 ? "longer than 1024 B" : NULL;
@@ -543,7 +545,7 @@ static cloud_error_t open_conn(link_t *c)
         close_link(c);
         if (sock_tls_full(r) && c->act != ACT_LOG && !yielding)
         {
-            debug_printf("cloud: TLS sockets taken, log connection yields\n");
+            debug_printf("cloud: TLS busy, log yields\n");
             yielding = log_yields = true;
         }
         if (!sock_busy(r) || tick_ms() - t0 + wait > 25500)
@@ -1228,6 +1230,10 @@ static bool install_image(conn_t *c)
                      c->length_bad ? " (malformed length)" : "");
         return false;
     }
+#ifdef CFW_ESP32
+    /* an image of up to 2.2 MB: about 1 s more per 16 KB */
+    c->k.deadline_ms += c->length / 16;
+#endif
     ledui_request(LED_FIRMWARE_DOWNLOAD);
     uint32_t got = 0;
     while (got < c->length)
@@ -1295,6 +1301,10 @@ static void update_check(uint32_t s)
     static const unsigned ids[5] = {4, 5, 2, 6, 3};
     bool slot = handover_get()->valid && update_free_slot();
 #endif
+    if (bootstate_trial_pending())
+    {
+        return; /* the last confirmed image stays until this start is confirmed */
+    }
     update_checked = true;
     for (unsigned i = 0; i < sizeof ids / sizeof ids[0]; i++)
     {
@@ -1367,7 +1377,7 @@ typedef struct
 } job_t;
 
 static StaticQueue_t queue_mem;
-static uint8_t queue_buf[6 * sizeof(job_t)];
+static uint8_t queue_buf[6 * sizeof(job_t)] LOWRAM;
 static QueueHandle_t queue;
 
 /* --- content download --- */
@@ -1481,6 +1491,11 @@ static bool prepare(FIL *f, const char *path, uint32_t z, uint32_t o, const uint
     }
     if (!exists)
     {
+        if (o)
+        {
+            debug_printf("cloud: %s gone, abort\n", path);
+            return false;
+        }
         if (!sd_room_for(z, &dl_cancel, work))
         {
             debug_printf("cloud: no room for %lu B, abort\n", (unsigned long)z);
@@ -1613,7 +1628,7 @@ static void content_download(const job_t *j)
     {
         file_open = false;
         close_conn(&c);
-        dl_end(serial, CE_CANCELLED, session);
+        dl_end(serial, o ? CE_RANGE : CE_CANCELLED, session); /* a resume starts over */
         return;
     }
     CRITICAL_ENTER();
@@ -1720,6 +1735,18 @@ static void content_download(const job_t *j)
     dl_end(serial, e, session);
 }
 
+/* Where a download resumed at pos starts: on a 4096-byte boundary and at
+ * least 1024 bytes before the end of a file of z bytes (0: unknown), so
+ * the rest is never shorter than the smallest answer accepted. */
+static uint32_t resume_at(uint32_t pos, uint32_t z)
+{
+    if (z >= 1024 && pos > z - 1024)
+    {
+        pos = z - 1024;
+    }
+    return pos & ~4095u;
+}
+
 void cloud_content(const uint8_t uid[8], const uint8_t *token, uint32_t offset, uint32_t if_range)
 {
     job_t j = {.kind = JOB_CONTENT, .offset = offset, .if_range = if_range};
@@ -1735,6 +1762,8 @@ void cloud_content(const uint8_t uid[8], const uint8_t *token, uint32_t offset, 
      * the card holds readable: the
      * playback goes on up to there; any other request starts at 0. */
     bool rest = offset && offset == d->pos && !memcmp(d->uid, uid, 8);
+    j.offset = resume_at(offset, rest ? d->size : 0);
+    rest = rest && j.offset;
     /* Serial first, then the flag: the activity clears the flag before
      * it compares the serial of the next job, so a job is either skipped
      * or sees the flag (the running one stops at its next check). */
@@ -1744,8 +1773,7 @@ void cloud_content(const uint8_t uid[8], const uint8_t *token, uint32_t offset, 
     d->done = d->failed = d->data = false;
     d->error = CE_OK;
     d->status = 0;
-    d->pos = rest ? offset : 0;
-    d->readable = rest ? offset & ~511u : 0;
+    d->pos = d->readable = rest ? j.offset : 0;
     d->size = rest ? d->size : 0;
     memcpy(d->uid, uid, 8);
     CRITICAL_EXIT();
@@ -2403,6 +2431,9 @@ static cloud_error_t fresh_session(uint32_t s)
         {
             return e;
         }
+#ifdef CFW_ESP32
+        server_answered();
+#endif
         _Static_assert(sizeof(fresh_t) <= sizeof share.c.fresh, "fresh_t outgrows its place");
         fresh_t *r = (fresh_t *)share.c.fresh;
         if (!fresh_decode(dl_buf, got, r))
@@ -2534,14 +2565,7 @@ static void maybe_sync(void)
     sync_pending = sync_user = false;
     CRITICAL_EXIT();
     retry_due = false;
-#ifdef CFW_ESP32
-    if (!sync_run(s, user))
-    {
-        server_answered();
-    }
-#else
     sync_run(s, user);
-#endif
 }
 
 /* The freshness check session with its indication and result. */
@@ -2616,10 +2640,6 @@ static void online_round(uint32_t s)
     CRITICAL_EXIT();
     cloud_error_t e = sync_run(s, user);
     net_cloud_first_result(s, e);
-    if (!e)
-    {
-        server_answered();
-    }
 #else
     bool ok = time_request(s);
     net_cloud_first_result(s, time_error);
@@ -2666,7 +2686,7 @@ int cloud_remote_update_check(void)
     /* state 6: the time of this session applied, as before the check at
      * start */
     if (!queue || !cfg.valid || !s || net_state() < 6 || player_busy() || job_running || sync_running ||
-        cloud_dl.active || uxQueueMessagesWaiting(queue))
+        cloud_dl.active || uxQueueMessagesWaiting(queue) || bootstate_trial_pending())
     {
         return 1;
     }
@@ -2709,7 +2729,7 @@ static int flash_equal(const char *name, unsigned n)
  * is the size (2 to 4096 bytes), in work. */
 static bool cert_der_ok(uint32_t size)
 {
-    return size <= sizeof work && der_element_size(work, size) == size;
+    return size >= 2 && size <= sizeof work && der_element_size(work, size) == size;
 }
 
 /* Check and store certificate i (0 private.der, 1
@@ -2727,7 +2747,11 @@ int cloud_cert_put(unsigned i, unsigned size)
     int eq = flash_equal(flash, size);
     if (eq != 1)
     {
-        long r = flashfs_replace(flash, work, size, true);
+        long r = flashfs_write(flash, work, size);
+        if (r != (long)size)
+        {
+            r = flashfs_replace(flash, work, size, true);
+        }
         eq = r == (long)size ? flash_equal(flash, size) : -1;
         debug_printf("cloud: %s written: %s\n", flash, eq == 1 ? "ok" : "FAILED");
     }

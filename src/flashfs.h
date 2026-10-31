@@ -28,5 +28,8 @@ long flashfs_write(const char *name, const void *buf, unsigned n);
  * not: n on success. */
 long flashfs_replace(const char *name, const void *buf, unsigned n, bool failsafe);
 long flashfs_delete(const char *name);
+/* Network processor platforms: keep new callers out while it stops. */
+void flashfs_hold(bool on);
+bool flashfs_busy(void);
 
 #endif

@@ -83,6 +83,12 @@ LDFLAGS := -mcpu=cortex-m4 -mthumb -Os -g $(LTO) -fstack-usage -save-temps -nost
 
 all: $(TARGET)-slot.bin
 
+# The build number and version are compiler flags: a stamp that changes
+# with them rebuilds the own sources, so no object keeps an older build.
+ID := $(BUILD_TIME) $(REVISION) $(CFW_VERSION)
+$(shell mkdir -p $(BUILD) && echo '$(ID)' | cmp -s - $(BUILD)/build-id || echo '$(ID)' > $(BUILD)/build-id)
+$(SRC:%.c=$(BUILD)/%.o): $(BUILD)/build-id
+
 $(TARGET).elf: $(OBJ) ld/app.ld
 	$(CROSS)gcc $(LDFLAGS) $(OBJ) -o $@
 	@mkdir -p $(BUILD)/lto && mv -f $(notdir $@).* $(notdir $(basename $(lastword $(OBJ)))).res $(BUILD)/lto/ 2>/dev/null || true
@@ -116,7 +122,7 @@ $(BUILD)/sdk/%.o: $(CC3200_SDK)/%.c
 # Worst-case stack of the activities from the .su files and the call graph.
 stackcheck: $(TARGET).elf
 	python3 tools/stackcheck.py $(TARGET).elf $(BUILD) x,y player.o:task cloud.o:task main.o:op_task net.o:task rtnl.o:task \
-	  input.o:task tag.o:tag_task ledui.o:task sound.o:task sl_osi.o:spawn_task main | grep bytes
+	  input.o:task tag.o:tag_task ledui.o:task sound.o:task sl_osi.o:spawn_task main | grep -E "bytes|VLA entry"
 
 # Revvox code style (.clang-format) for the own sources.
 CLANG_FORMAT ?= clang-format

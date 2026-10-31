@@ -46,7 +46,7 @@
 static TaskHandle_t checker;
 static volatile bool station_pending, station_state;
 static bool station_handled;
-static bool measure_next, low_battery, critical_announced;
+static bool measure_next, low_battery, critical_announced, critical_suspect;
 static uint32_t last_measure;
 static volatile uint32_t idle_since;
 static volatile uint16_t idle_minutes[2]; /* off, on the station; 0 = 10 */
@@ -135,17 +135,27 @@ static void report_at_hello(void)
 
 static void evaluate(uint32_t mv)
 {
+    bool suspect = critical_suspect;
+    critical_suspect = false;
     if (mv <= 3600)
     {
+        debug_printf("pwr: crit %lumV raw %lu -> %s\n", (unsigned long)mv, (unsigned long)battery_last_raw(),
+                     critical_announced ? "pending" : suspect ? "off"
+                                                              : "again");
         if (critical_announced)
         {
-            debug_printf("pwr: crit again\n");
+            return;
+        }
+        /* A load peak alone does not switch the box off; the measurement
+         * 5 s later must be critical as well. */
+        if (!suspect)
+        {
+            critical_suspect = true;
             return;
         }
         critical_announced = true;
         critical_pending = true;
         critical_at = tick_ms();
-        debug_printf("pwr: crit %lumV raw %lu -> off\n", (unsigned long)mv, (unsigned long)battery_last_raw());
         ledui_request(LED_BATTERY_EMPTY);
         player_prompt(9, false);
         return;
@@ -196,7 +206,7 @@ void power_start(void *task)
 {
     checker = (TaskHandle_t)task;
     /* the state handled last is the raw level at start. */
-    station_handled = board_on_station();
+    station_state = station_handled = board_on_station();
     idle_since = tick_ms();
     measure();
 }
@@ -330,8 +340,8 @@ void power_check(void)
     {
         station_handling(on);
     }
-    /* more than 120 whole seconds. */
-    if (measure_next || (tick_ms() - last_measure) / 1000 > 120)
+    /* more than 120 whole seconds, 5 s after a first critical value. */
+    if (measure_next || (tick_ms() - last_measure) / 1000 > (critical_suspect ? 4u : 120u))
     {
         measure();
     }
@@ -384,6 +394,7 @@ void power_restore(void)
     settings.led = p.led;
     uint8_t step[2] = {p.step_speaker, p.step_headphones};
     sound_volume_set(step);
+    sound_limits_changed();
     net_offline_set(p.offline);
     /* a test start discards the resume point. */
     player_resume_set(bootstate_trial_pending() ? 0 : p.resume);
@@ -482,7 +493,9 @@ static void off_checks(void)
         power_activity(); /* the box became idle */
     }
     bool soon = off_soon && (int32_t)(now - off_soon_at) >= 500; /* power_off_soon() */
-    if (!monitor_in_update_round() && (soon || (now - idle_since) / 1000 > idle_limit_s()))
+    /* before the time: it may be set meanwhile */
+    uint32_t since = idle_since;
+    if (!monitor_in_update_round() && (soon || (tick_ms() - since) / 1000 > idle_limit_s()))
     {
         idle_power_off(soon);
     }
@@ -493,13 +506,14 @@ static void off_checks(void)
 void power_wake_check(void)
 {
 #if CFW_HIBERNATE
-    if (start_reason() != START_HIB_EXIT || !restored_station || board_on_station())
+    bool broke = retained_nwp_broke();
+    if (board_on_station() || (!broke && (start_reason() != START_HIB_EXIT || !restored_station)))
     {
         return;
     }
     uint32_t mv = battery_wake_measure();
-    debug_printf("pwr: off station, %lu mV\n", (unsigned long)mv);
-    bool green = mv > 3299;
+    debug_printf("pwr: %s, %lu mV\n", broke ? "broke down" : "off station", (unsigned long)mv);
+    bool green = !broke && mv > 3299;
     for (int phase = 0; phase < 10; phase++)
     {
         if (phase % 2)

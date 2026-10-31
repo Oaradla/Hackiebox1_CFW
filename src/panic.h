@@ -105,6 +105,10 @@ bool retained_state(uint32_t rec[2]);
 void retained_store_state(uint32_t w1, uint32_t w2);
 /* Stores the progress record with another marker. */
 void retained_progress(uint32_t marker);
+#define RETAINED_NWP_START 2u
+/* The last start broke off while the network processor started: an empty
+ * battery that broke down under its load. */
+bool retained_nwp_broke(void);
 
 /* appends the fault record found at start to PM1.LOG and
  * PM2.LOG. Once after the card has been mounted. */

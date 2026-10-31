@@ -85,6 +85,10 @@ uint32_t battery_wake_measure(void)
         if (i == 0)
         {
             UtilsDelay(30u * (80000u / 3u)); /* discard one word, 30 ms */
+            while (MAP_ADCFIFOLvlGet(ADC_BASE, ADC_CH_3))
+            {
+                MAP_ADCFIFORead(ADC_BASE, ADC_CH_3); /* words from before the wait */
+            }
         }
         else
         {

@@ -46,7 +46,8 @@ int main(int argc, char **argv)
                                 preskip -= f;
                             } else {
                                 if (preskip) {
-                                    memmove(pcm, pcm + 2 * preskip, 4 * (f - preskip));
+                                    f -= preskip;
+                                    memmove(pcm, pcm + 2 * preskip, 4 * f);
                                     preskip = 0;
                                 }
                                 fwrite(pcm, 4, f, out);

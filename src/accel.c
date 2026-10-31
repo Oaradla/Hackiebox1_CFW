@@ -278,11 +278,13 @@ accel_dir_t accel_slap(void)
     int n = sensor_read(&overflow);
     /* The source register is read even when the samples could not be:
      * reading it releases the latched interrupt line, which would
-     * otherwise stay high and block every later slap. */
+     * otherwise stay high and block every later slap; hence a second try. */
     bool candidate;
     if (sensor == ACCEL_LIS3DH)
     {
-        if (i2c_read_regs(LIS3DH_ADDR, 0x39, &src, 1) != I2C_OK || n < 0)
+        if ((i2c_read_regs(LIS3DH_ADDR, 0x39, &src, 1) != I2C_OK &&
+             i2c_read_regs(LIS3DH_ADDR, 0x39, &src, 1) != I2C_OK) ||
+            n < 0)
         {
             return DIR_NONE;
         }
@@ -290,7 +292,9 @@ accel_dir_t accel_slap(void)
     }
     else
     {
-        if (i2c_read_regs(MMA8451Q_ADDR, 0x22, &src, 1) != I2C_OK || n < 0)
+        if ((i2c_read_regs(MMA8451Q_ADDR, 0x22, &src, 1) != I2C_OK &&
+             i2c_read_regs(MMA8451Q_ADDR, 0x22, &src, 1) != I2C_OK) ||
+            n < 0)
         {
             return DIR_NONE;
         }

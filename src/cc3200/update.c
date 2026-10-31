@@ -49,8 +49,8 @@ static uint32_t le32(const uint8_t *p)
     return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
 }
 
-/* lowest cfw slot that is neither the running one nor the
- * helper slot and whose file is missing or carries the family marker CFW1
+/* lowest cfw slot that is neither the running one, the active one of the
+ * state file nor the helper slot and whose file is missing or carries the family marker CFW1
  * at offset 93 of its build block. Slot numbers of the state file and the
  * handover record: cfw1..3 = 3..5. */
 unsigned update_free_slot(void)
@@ -58,10 +58,11 @@ unsigned update_free_slot(void)
     static FIL f;
     const handover_t *h = handover_get();
     uint8_t s[32];
-    unsigned helper = bootstate_read(s) ? s[10] : 255;
+    bool state = bootstate_read(s);
+    unsigned active = state ? s[4] : 255, helper = state ? s[10] : 255;
     for (unsigned n = 1; n <= 3; n++)
     {
-        if ((h->valid && h->slot == 2 + n) || helper == 2 + n)
+        if ((h->valid && h->slot == 2 + n) || active == 2 + n || helper == 2 + n)
         {
             continue;
         }

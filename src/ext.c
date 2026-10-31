@@ -8,6 +8,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "FreeRTOS.h"
+#include "semphr.h"
 #include "ff.h"
 #include "port.h"
 #include "clock.h"
@@ -31,6 +33,14 @@ static uint32_t boot_rolled_back;
  * the next one. */
 static volatile bool trial_waiting, trial_confirmed, answer_due;
 static volatile uint32_t generation;
+/* settings files are written by the cloud and the log activity */
+static StaticSemaphore_t lock_mem;
+static SemaphoreHandle_t lock;
+
+void ext_init(void)
+{
+    lock = xSemaphoreCreateMutexStatic(&lock_mem);
+}
 
 static uint32_t ext_le32(const uint8_t *p)
 {
@@ -62,7 +72,9 @@ void ext_set_boot_result(uint32_t last_result, uint32_t rolled_back_build, bool 
         boot_result = last_result;
     }
     boot_rolled_back = rolled_back_build;
+    CRITICAL_ENTER(); /* a confirmation in between must not be undone */
     trial_waiting = trial_pending && !trial_confirmed;
+    CRITICAL_EXIT();
 }
 
 /* From the activity that confirms (op_task): the result first, then the
@@ -384,7 +396,9 @@ bool ext_write(const uint8_t uid[8], ext_settings_t *s)
     s->stamp = clock_now();
     unsigned n = ext_build(kind, s->stamp, s, file);
     ext_path(uid, path);
+    xSemaphoreTake(lock, portMAX_DELAY);
     bool ok = tbs_store(path, file, n);
+    xSemaphoreGive(lock);
     debug_printf("ext: %s written, %u B%s\n", path, n, ok ? "" : " FAILED");
     if (ok && hello)
     {
@@ -444,13 +458,15 @@ static bool store_field(const uint8_t *d, unsigned len)
     char path[30];
     uint8_t held[TBS_MAX];
     ext_path(d, path);
+    xSemaphoreTake(lock, portMAX_DELAY);
     /* the newer one wins; an equal time stamp is the same file */
-    if (tbs_load(path, held) && ext_le32(f + 8) <= ext_le32(held + 8))
+    bool newer = !tbs_load(path, held) || ext_le32(f + 8) > ext_le32(held + 8);
+    bool ok = newer && tbs_store(path, f, n);
+    xSemaphoreGive(lock);
+    if (newer)
     {
-        return false;
+        debug_printf("ext: %s stored, %u B%s\n", path, n, ok ? "" : " FAILED");
     }
-    bool ok = tbs_store(path, f, n);
-    debug_printf("ext: %s stored, %u B%s\n", path, n, ok ? "" : " FAILED");
     return ok;
 }
 

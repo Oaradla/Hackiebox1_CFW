@@ -58,6 +58,10 @@ static bool repeated(const uint8_t **p, const uint8_t *end, unsigned wire, uint3
             return false;
         }
         stop = *p + len;
+        if (!len)
+        {
+            return true; /* a table without entries */
+        }
     }
     do
     {

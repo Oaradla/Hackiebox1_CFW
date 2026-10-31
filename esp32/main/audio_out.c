@@ -40,7 +40,6 @@
 
 static i2s_chan_handle_t tx;
 static int16_t buffers[N_BUFFERS][2 * AUDIO_OUT_FRAMES];
-static uint16_t frames_in[N_BUFFERS];
 static volatile uint32_t head, tail; /* queued, not yet written to the DMA */
 static volatile bool streaming, playing, running, stalled;
 static volatile uint32_t written_bytes; /* since the output started */
@@ -81,8 +80,7 @@ static void drain(void)
     {
         unsigned i = tail % N_BUFFERS;
         size_t n = 0;
-        size_t bytes = (size_t)frames_in[i] * 4u;
-        if (i2s_channel_write(tx, buffers[i], bytes, &n, pdMS_TO_TICKS(1000)) != ESP_OK || n != bytes)
+        if (i2s_channel_write(tx, buffers[i], BUF_BYTES, &n, pdMS_TO_TICKS(1000)) != ESP_OK || n != BUF_BYTES)
         {
             stalled = true;
             return;
@@ -146,7 +144,13 @@ void audio_out_commit_frames(unsigned frames)
     {
         return;
     }
-    frames_in[head % N_BUFFERS] = (uint16_t)(frames < AUDIO_OUT_FRAMES ? frames : AUDIO_OUT_FRAMES);
+    /* whole DMA buffers only: the driver goes on writing where the last
+     * write ended, so a partial one would put the next stream's start
+     * into a buffer the DMA has already passed */
+    if (frames < AUDIO_OUT_FRAMES)
+    {
+        memset(buffers[head % N_BUFFERS] + 2 * frames, 0, (AUDIO_OUT_FRAMES - frames) * 4u);
+    }
     streaming = true;
     head++;
     if (playing)

@@ -34,10 +34,10 @@ add_custom_target(cfw_build_id ALL
     COMMAND ${CMAKE_COMMAND} -DTOP=${TOP} -DOUT=${BUILD_H} -P ${CMAKE_CURRENT_LIST_DIR}/build_id.cmake
     BYPRODUCTS ${BUILD_H})
 add_dependencies(${COMPONENT_LIB} cfw_build_id)
-if(NOT CFW_DEBUG)
+if(NOT DEFINED CFW_DEBUG)
     set(CFW_DEBUG 1)
 endif()
-if(NOT CFW_START_STEP)
+if(NOT DEFINED CFW_START_STEP)
     set(CFW_START_STEP 8)
 endif()
 target_compile_definitions(${COMPONENT_LIB} PRIVATE

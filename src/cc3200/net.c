@@ -20,6 +20,7 @@
 #include "clock.h"
 #include "cloud.h"
 #include "debug.h"
+#include "flashfs.h"
 #include "net.h"
 #include "ledui.h"
 #include "monitor.h"
@@ -499,7 +500,10 @@ static long nwp_start(bool first)
     addr_seen = false;
     running = true;
     uint32_t t0 = tick_ms(), f0 = faults;
+    /* the largest load of the start: an empty battery breaks down here */
+    retained_progress(RETAINED_NWP_START);
     long r = sl_Start(NULL, NULL, NULL);
+    retained_progress(1);
     debug_printf("net: sl_Start %ld, %lu ms, dma %u\n", r, (unsigned long)(tick_ms() - t0), g_ucDMAEnabled);
     /* A start whose completion timed out returns a role taken from an
      * answer that never came: the fault event tells it. */
@@ -604,6 +608,7 @@ static void shutdown(uint8_t reason, const char *why)
     uint32_t t0 = tick_ms();
     page_stop();
     handing_over = true;
+    flashfs_hold(true);
     debug_printf("net: shutdown (%s)\n", why);
     log_drain();
     log_args_t a = {0};
@@ -613,7 +618,7 @@ static void shutdown(uint8_t reason, const char *why)
     end_session();
     /* The cloud and log work ends at its next check of the session; then
      * no other task is inside the driver (at most 54 s). */
-    for (unsigned i = 0; log_connected() || osi_driver_busy(); i++)
+    for (unsigned i = 0; log_connected() || osi_driver_busy() || flashfs_busy(); i++)
     {
         if (i == 100 || i == 5400)
         {
@@ -638,6 +643,7 @@ static void shutdown(uint8_t reason, const char *why)
     handing_over = false;
     vTaskDelay(pdMS_TO_TICKS(60));
     nwp_on = false;
+    flashfs_hold(false);
     role = -1;
     /* Reports of the stopped instance are not handled. */
     taskENTER_CRITICAL();
@@ -665,6 +671,13 @@ static long restart(uint8_t reason, const char *why)
     shutdown(reason, why);
     long r = nwp_start(false);
     after_start(r, false);
+    if (mode == M_SETUP && r == ROLE_AP)
+    {
+        /* the setup services and the page again, as open_ap() */
+        sl_NetAppStop(0x0B);
+        sl_NetAppStart(0x0B);
+        page_allowed = true;
+    }
     return r;
 }
 

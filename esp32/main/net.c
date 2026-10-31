@@ -513,7 +513,7 @@ static void connect_to(const uint8_t *ssid, uint8_t ssid_len, const uint8_t *key
 {
     wifi_config_t c = {0};
     memcpy(c.sta.ssid, ssid, ssid_len);
-    memcpy(c.sta.password, key, key_len < 64 ? key_len : 63);
+    memcpy(c.sta.password, key, key_len < 64 ? key_len : 64);
     c.sta.threshold.authmode = threshold(sec);
     c.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
     c.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
@@ -992,6 +992,7 @@ static void handle(const event_t *e)
         {
             set_state(3, "connection");
         }
+        next_try = tick_ms() + 30000; /* the time an address may take */
         break;
     }
     case EV_ADDRESS:
@@ -1003,10 +1004,11 @@ static void handle(const event_t *e)
                      (unsigned long)(gw & 255));
         end_session();
         connecting = false;
-        if (offline || ip == gw || state > 3)
+        if (offline || ip == gw)
         {
             break;
         }
+        /* a changed address while online starts a new session */
         session = ++session_count;
         set_state(4, "address");
         cloud_online_round(session);
@@ -1072,6 +1074,14 @@ static void task(void *arg)
             auto_connect();
             next_try = tick_ms() + (connecting ? 15000 : 10000);
             connecting = false;
+        }
+        if (!going_down && mode == M_STATION && state == 3 && (int32_t)(tick_ms() - next_try) >= 0)
+        {
+            /* the DHCP client never gives up; the disconnection lets
+             * the joins start again, with every stored network */
+            debug_printf("net: no address, reconnect\n");
+            next_try = tick_ms() + 30000;
+            esp_wifi_disconnect();
         }
         if (cloud_restart_wanted())
         {

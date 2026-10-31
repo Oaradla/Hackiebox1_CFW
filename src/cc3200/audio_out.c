@@ -81,10 +81,18 @@ void i2s_handler(void)
             finished |= 1u << half;
         }
     }
-    /* A finished half is armed again only while the other one still runs;
-     * an idle half is armed by the producer as soon as it commits. */
-    if (in_use[0] >= 0 || in_use[1] >= 0)
+    /* A finished half is armed again while the other one still runs; an
+     * idle half is armed by the producer as soon as it commits. When both
+     * halves ended before this interrupt, queued buffers go on from the
+     * primary half. */
+    bool running_half = in_use[0] >= 0 || in_use[1] >= 0;
+    if (running_half || tail != head)
     {
+        if (!running_half)
+        {
+            MAP_uDMAChannelAttributeDisable(DMA_CH, UDMA_ATTR_ALTSELECT);
+            finished = 3;
+        }
         for (int half = 0; half < 2; half++)
         {
             if (finished & (1u << half))

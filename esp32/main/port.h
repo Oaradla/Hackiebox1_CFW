@@ -17,6 +17,10 @@
 
 #define TASK_STACK(words) ((words) * 6u + 1024u)
 #define TASK_STACK_FREE_WORDS(task) (uxTaskGetStackHighWaterMark(task) / 6u)
+/* Added to the stack of a task that opens TLS connections: mbed TLS runs
+ * the handshake on the calling task's stack. Not measured on the box yet;
+ * sized from ESP-IDF's TLS clients. */
+#define TLS_STACK 8192u
 
 extern portMUX_TYPE port_mux;
 #define CRITICAL_ENTER() taskENTER_CRITICAL(&port_mux)

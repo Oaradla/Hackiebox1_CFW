@@ -345,6 +345,9 @@ void player_resume_set(uint32_t r)
     resume.tag_only = true;
     resume.tag = r & 0xFFF;
     resume.block = (r >> 12) * 2;
+    /* kept for the next off state if nothing plays before it */
+    resume.uid[0] = (uint8_t)r;
+    resume.uid[1] = (uint8_t)(r >> 8 & 15);
 }
 
 /* --- the content being played --- */
@@ -1857,8 +1860,9 @@ static void ext_stop(const uint8_t uid[8])
     ext_state_t r = {0};
     memcpy(r.uid, uid, 8);
     r.audio_id = hdr.audio_id;
+    /* while the jump to the start position is pending, its target */
     r.position = content_ended ? 0 : resume_names(uid) ? resume.block
-                                                       : 0;
+                                                       : jump_start / TAF_BLOCK;
     if (shuf.on)
     {
         r.seed = shuf.seed;
@@ -2013,6 +2017,13 @@ static bool wait_download(bool *removed)
                 debug_printf("pl: removed while loading\n");
                 return false;
             }
+            if (remote_playing)
+            {
+                /* command 71: a placed figure ends it */
+                figure_changed = *removed = true;
+                log_event(EVT_PLAYBACK_STOPPED, NULL);
+                return false;
+            }
             debug_printf("pl: placed while preparing (6157)\n");
         }
     }
@@ -2098,7 +2109,7 @@ static void start_content(const uint8_t uid[8], const uint8_t *token)
          * a request for another figure or a stall: follow
          * it. A new request would also wait for the network processor to
          * release the TLS session of the dropped one. */
-        debug_printf("pl: download still running at %lu, following it\n", (unsigned long)cloud_dl.pos);
+        debug_printf("pl: download running at %lu, follows\n", (unsigned long)cloud_dl.pos);
     }
     else
     {

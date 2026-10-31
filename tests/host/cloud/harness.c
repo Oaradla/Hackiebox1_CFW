@@ -19,6 +19,14 @@ static void (*recv_hook)(int);
 
 static const char *root;
 static uint32_t sim_ms;
+static uint32_t late_ms;
+static void late_hook(int n)
+{
+    if (n == 20)
+    {
+        sim_ms += late_ms;
+    }
+}
 static int failures;
 #define CHECK(c, ...)                       \
     do                                      \
@@ -148,7 +156,8 @@ bool bootstate_read(uint8_t s[32])
     memcpy(s, bs_file, 32);
     return bs_valid;
 }
-bool bootstate_trial_pending(void) { return false; }
+static bool trial_pending;
+bool bootstate_trial_pending(void) { return trial_pending; }
 void bootstate_report(boot_check_t c, bool ok)
 {
     if (c == BOOT_CHECK_TIME && ok)
@@ -1137,7 +1146,7 @@ int main(int argc, char **argv)
     printf("E4 no claim for a complete content\n");
     reset();
     unsigned waiting = uxQueueMessagesWaiting(queue);
-    uint8_t uid[8] = {0xE0, 0x04, 0x03, 0x50, 0x0E, 0xEE, 0x06, 0xB7}, token[32] = {0};
+    uint8_t uid[8] = {0xE0, 0x04, 0x03, 0x50, 0xA1, 0xB2, 0xC3, 0xD4}, token[32] = {0};
     cloud_claim(uid, token);
     CHECK(uxQueueMessagesWaiting(queue) == waiting, "nothing queued");
 
@@ -1164,6 +1173,26 @@ int main(int argc, char **argv)
     sprintf(want, "GET /v1/ota/3?cv=%u ", CFW_BUILD_TIME);
     CHECK(n_sent == 2 && !strncmp(sent[0], want, strlen(want)) && strstr(sent[1], "GET /v1/ota/7?cv=") == sent[1],
           "item 3 with the own build number, then item 7, once per start");
+
+    printf("E6b item 3: 60 s plus about 1 s per 16 KB of the image\n");
+    {
+        static char img[160100];
+        int hl = sprintf(img, "HTTP/1.1 200 OK\r\nContent-Length: 160000\r\n\r\n");
+        for (int late = 65000; late <= 75000; late += 10000)
+        {
+            reset();
+            update_checked = false;
+            up_begun = up_aborted = up_finished = 0;
+            late_ms = late;
+            recv_calls = 0;
+            recv_hook = late_hook;
+            serve(img, hl + 160000);
+            update_check(1);
+            recv_hook = NULL;
+            CHECK(late == 65000 ? up_finished == 1 && !up_aborted : up_aborted && !up_finished,
+                  "160000 bytes within %d ms: %s", late, late == 65000 ? "installed" : "abandoned");
+        }
+    }
 
     printf("E7 an incomplete freshness check session is made again, also in state 4, until one completes\n");
     reset();
@@ -1196,6 +1225,12 @@ int main(int argc, char **argv)
     sim_ms += 2000000;
     maybe_sync();
     CHECK(n_sent == 3, "no further session");
+    boot_time_reports = 0;
+    start_confirmed = false;
+    state = 4;
+    serve("HTTP/1.1 200 x\r\nContent-Length: 1\r\n\r\n\xff", 0);
+    online_round(1);
+    CHECK(first_result != CE_OK && boot_time_reports == 1, "2xx answer, session failed later: the start is confirmed");
 
     unlink(q);
     full("cfw", q);
@@ -1248,6 +1283,14 @@ int main(int argc, char **argv)
     serve(big, 0);
     ok = time_request(1);
     CHECK(!ok, "rejected");
+
+    printf("T4a no update check while the trial start is unconfirmed\n");
+    reset();
+    update_checked = false;
+    trial_pending = true;
+    update_check(1);
+    CHECK(n_sent == 0 && !update_checked, "no request, check left for later");
+    trial_pending = false;
 
     printf("T4 update check under the SD bootloader, items answered 304\n");
     reset();
@@ -1443,7 +1486,7 @@ int main(int argc, char **argv)
 
     printf("T6 freshness check: limit 1, LED dimmed, slap off, one mark\n");
     reset();
-    static const uint8_t body[] = {0x0A, 0x08, 0xB7, 0x06, 0xEE, 0x0E, 0x50, 0x03, 0x04, 0xE0, 0x18, 0x01, 0x20, 0x00, 0x40, 0x02};
+    static const uint8_t body[] = {0x0A, 0x08, 0xD4, 0xC3, 0xB2, 0xA1, 0x50, 0x03, 0x04, 0xE0, 0x18, 0x01, 0x20, 0x00, 0x40, 0x02};
     static char ans[200];
     int hl = sprintf(ans, "HTTP/1.1 200 OK\r\nContent-Length: %zu\r\n\r\n", sizeof body);
     memcpy(ans + hl, body, sizeof body);
@@ -1463,7 +1506,7 @@ int main(int argc, char **argv)
     CHECK(settings.limit_speaker == 1 && settings.led == 2 && settings.slap_enable == 0, "settings applied");
     CHECK(blen % 16 == 0 && (uint8_t)b[0] == 0x0A && (uint8_t)b[1] == 14 && (uint8_t)b[2] == 0x09, "entries 16 bytes: field 1, fixed64 uid");
     FILINFO fi;
-    CHECK(f_stat("CONTENT/B706EE0E/500304E0", &fi) == FR_OK && (fi.fattrib & AM_HID), "figure marked outdated");
+    CHECK(f_stat("CONTENT/D4C3B2A1/500304E0", &fi) == FR_OK && (fi.fattrib & AM_HID), "figure marked outdated");
 
     printf("T7 content download, 200, whole file\n");
     reset();
@@ -1526,6 +1569,8 @@ int main(int argc, char **argv)
     serve(f2, h8b + z - off2);
     cloud_content(uid, NULL, off2, 0xC0FFE1);
     xQueueReceive(queue, &j, 0);
+    CHECK(j.offset == (uint32_t)off, "request rounded down to the boundary");
+    j.offset = (uint32_t)off2; /* the write path still copes with any offset */
     dl_cancel = false;
     n_writes = 0;
     content_download(&j);
@@ -1553,6 +1598,19 @@ int main(int argc, char **argv)
         fclose(got);
     }
     CHECK(cloud_dl.failed && cloud_dl.pos == 10000, "failed at %u", cloud_dl.pos);
+
+    printf("T8d resume of a file that is no longer on the card: refused, no file with a hole\n");
+    reset();
+    static const uint8_t uidD[8] = {0x78, 0x22, 0x33, 0x44, 0x50, 0x03, 0x04, 0xE0};
+    h8 = sprintf(f2, "HTTP/1.1 206 Partial\r\nContent-Length: %ld\r\nContent-Range: bytes %ld-%ld/%ld\r\n\r\n", z - off, off, z - 1, z);
+    memcpy(f2 + h8, file + h7 + off, z - off);
+    serve(f2, h8 + z - off);
+    cloud_content(uidD, NULL, off, 0xC0FFE1);
+    xQueueReceive(queue, &j, 0);
+    dl_cancel = false;
+    content_download(&j);
+    full("CONTENT/78223344/500304E0", qc);
+    CHECK(cloud_dl.failed && cloud_dl.error == CE_RANGE && access(qc, F_OK) != 0, "refused as a resume, no file");
 
     printf("T9 content 404\n");
     reset();
@@ -1621,19 +1679,25 @@ int main(int argc, char **argv)
     xQueueReceive(queue, &j, 0);
     cloud_dl.pos = 70000;
     cloud_dl.readable = 69632;
+    cloud_dl.size = 0; /* no answer header yet */
     cloud_dl.failed = true;
     cloud_dl.active = false;
     cloud_content(uidA, NULL, cloud_dl.pos, 0xC0FFEE);
     xQueueReceive(queue, &j, 0);
-    CHECK(cloud_dl.pos == 70000 && cloud_dl.readable == (70000u & ~511u) && j.offset == 70000, "pos %u readable %u", cloud_dl.pos, cloud_dl.readable);
+    CHECK(cloud_dl.pos == 69632 && cloud_dl.readable == 69632 && j.offset == 69632, "from the boundary below: pos %u readable %u", cloud_dl.pos, cloud_dl.readable);
     session = 0;
     dl_cancel = false;
     content_download(&j);
     session = 1;
-    CHECK(cloud_dl.failed && cloud_dl.error == CE_CANCELLED && cloud_dl.pos == 70000, "no session: cancelled, not name resolution (B5); pos kept (%s)", cloud_error_name(cloud_dl.error));
+    CHECK(cloud_dl.failed && cloud_dl.error == CE_CANCELLED && cloud_dl.pos == 69632, "no session: cancelled, not name resolution (B5); pos kept (%s)", cloud_error_name(cloud_dl.error));
     cloud_content(uidA, NULL, cloud_dl.pos, 0xC0FFEE);
     xQueueReceive(queue, &j, 0);
-    CHECK(j.offset == 70000, "next retry still ranged");
+    CHECK(j.offset == 69632, "next retry still ranged");
+    cloud_dl.size = 69700;
+    cloud_dl.pos = 69000;
+    cloud_content(uidA, NULL, cloud_dl.pos, 0xC0FFEE);
+    xQueueReceive(queue, &j, 0);
+    CHECK(j.offset == 65536 && cloud_dl.pos == 65536, "less than 1024 bytes left: one boundary further back");
     cloud_content(uidB, NULL, 0, 0);
     xQueueReceive(queue, &j, 0);
     CHECK(cloud_dl.pos == 0 && cloud_dl.readable == 0, "a new figure starts at 0");
@@ -1864,6 +1928,9 @@ int main(int argc, char **argv)
         session = 0;
         CHECK(cloud_remote_update_check() == 1, "no network session: 1");
         session = 1;
+        trial_pending = true;
+        CHECK(cloud_remote_update_check() == 1, "trial unconfirmed: 1");
+        trial_pending = false;
         CHECK(uxQueueMessagesWaiting(queue) == 0, "nothing queued when refused");
     }
 
@@ -2015,7 +2082,7 @@ int main(int argc, char **argv)
         CHECK(cloud_cert_put(1, 2) == 0 && !strcmp(flash[1].name, "/cert/client.der") && flash[1].len == 2, "2-byte element: written to client.der");
         memcpy(work, "\x30\x81\x02\x00\x00", 5);
         CHECK(cloud_cert_put(0, 5) == 0 && !strcmp(flash[2].name, "/cert/private.der"), "0x81 form: written to private.der");
-        CHECK(cloud_cert_put(0, 1) == -1 && cloud_cert_put(0, 4097) == -1 && cloud_cert_put(3, 5) == -1, "1 byte, 4097 bytes, index 3: refused");
+        CHECK(cloud_cert_put(0, 0) == -1 && cloud_cert_put(0, 1) == -1 && cloud_cert_put(0, 4097) == -1 && cloud_cert_put(3, 5) == -1, "0 bytes, 1 byte, 4097 bytes, index 3: refused");
         memcpy(work, d, 300);
         work[20] = 1;
         fs_write_bad = 1;

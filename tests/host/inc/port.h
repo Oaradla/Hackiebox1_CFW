@@ -14,6 +14,7 @@
 
 #define TASK_STACK(words) (words)
 #define TASK_STACK_FREE_WORDS(task) uxTaskGetStackHighWaterMark(task)
+#define TLS_STACK 0u
 #define CRITICAL_ENTER() taskENTER_CRITICAL()
 #define CRITICAL_EXIT() taskEXIT_CRITICAL()
 #define START_HIB_EXIT 7

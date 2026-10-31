@@ -5,10 +5,11 @@
 # usage: tests/host/all.sh <content file with three chapters, e.g. from tools/taftest>
 # SPDX-License-Identifier: GPL-3.0-or-later
 set -e
+TAF=$(readlink -f "$1")
 cd "$(dirname "$0")/../.."
-sh tests/host/run.sh "$1"
+sh tests/host/run.sh "$TAF"
 echo "== settings file"
-gcc -fsanitize=address,undefined -g -O1 -w -Itests/host/cloud/inc -Itests/host/inc -Isrc -Isrc/cc3200 -o build/host/settings_test tests/host/cloud/settings_test.c src/cc3200/flashfs.c
+gcc -fsanitize=address,undefined -fno-sanitize-recover=all -g -O1 -w -Itests/host/cloud/inc -Itests/host/inc -Isrc -Isrc/cc3200 -o build/host/settings_test tests/host/cloud/settings_test.c src/cc3200/flashfs.c
 ASAN_OPTIONS=detect_leaks=0 build/host/settings_test > build/host/settings.log || { cat build/host/settings.log; exit 1; }
 grep "failure" build/host/settings.log || true
 for t in rtnl setup update power battery page; do

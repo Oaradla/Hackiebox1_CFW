@@ -23,6 +23,7 @@
 #include "cloud.h"
 #include "debug.h"
 #include "esp32.h"
+#include "ext.h"
 #include "ff.h"
 #include "i2c.h"
 #include "input.h"
@@ -57,6 +58,7 @@ static void sd_start_and_mount(void)
                  (unsigned long)(tick_ms() - t0), (unsigned long)sd_sectors());
     if (!ok)
     {
+        bootstate_report(BOOT_CHECK_CARD, false);
         return;
     }
     FRESULT r = f_mount(&fs, "", 1);
@@ -137,6 +139,7 @@ void app_main(void)
 
     sound_init();
     log_init();
+    ext_init();
     player_init();
     cloud_init();
     power_restore();

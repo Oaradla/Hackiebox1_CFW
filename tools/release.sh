@@ -76,9 +76,14 @@ PY
 
 echo "== ESP32"
 IDF=${IDF_PATH:-$HOME/esp/esp-idf-v5.4.2}
-(. "$IDF/export.sh" >/dev/null 2>&1 && cd esp32 && idf.py -DCFW_VERSION="$V" build >/dev/null)
-cp esp32/build/toniebox-cfw-esp32.bin "$PKG/esp32/toniebox-cfw-esp32.bin"
-ESP_BUILD=$(python3 tools/esp32img.py info esp32/build/toniebox-cfw-esp32.bin | sed -n 's/.*build \([0-9]*\).*/\1/p')
+# a build directory and sdkconfig of its own: only sdkconfig.defaults of the tree counts
+EB=$PWD/$OUT/esp32
+rm -rf "$EB"
+(. "$IDF/export.sh" >/dev/null 2>&1 && cd esp32 &&
+    idf.py -B "$EB" -D SDKCONFIG="$EB/sdkconfig" -DCFW_VERSION="$V" build >/dev/null)
+python3 tools/esp32img.py check "$EB/toniebox-cfw-esp32.bin"
+cp "$EB/toniebox-cfw-esp32.bin" "$PKG/esp32/toniebox-cfw-esp32.bin"
+ESP_BUILD=$(python3 tools/esp32img.py info "$EB/toniebox-cfw-esp32.bin" | sed -n 's/.*build \([0-9]*\).*/\1/p')
 
 # the page as it is: its own version and the firmware it needs at least; a page whose
 # content changes gets a new cfw-page-version in the same commit
@@ -92,7 +97,8 @@ for t in release/README*.md.in; do
         -e "s/@ESP32_BUILD@/$ESP_BUILD/g" -e "s/@BOOTLOADER_REVISION@/$BL_REV/g" -e "s/@PAGE_VERSION@/$PAGE_VERSION/g" -e "s/@PAGE_NEEDS@/$PAGE_NEEDS/g" "$t" > "$PKG/$(basename "$t" .in)"
 done
 tools/third_party_notices.sh "$IDF" > "$PKG/THIRD-PARTY-NOTICES.txt"
-(cd "$PKG" && sha256sum cc3200/ng-cfw.bin cc3200/ngbootloader.bin cc3200/flash/sys/mcuimg.bin esp32/toniebox-cfw-esp32.bin setup.htm > SHA256SUMS)
+(cd "$PKG" && sha256sum cc3200/ng-cfw.bin cc3200/ngbootloader.bin cc3200/flash/sys/mcuimg.bin esp32/toniebox-cfw-esp32.bin setup.htm \
+    $(find cc3200/card -type f | sort) > SHA256SUMS)
 
 ZIP=$OUT/toniebox-cfw-$V.zip
 (cd "$PKG" && zip -q -0 -X -r "../$(basename "$ZIP")" README.md THIRD-PARTY-NOTICES.txt SHA256SUMS cc3200 esp32 setup.htm)

@@ -64,6 +64,14 @@ Without a server block the box confirms as soon as it has joined a network
 and makes no cloud connection until the server is set on the setup page or
 on the card.
 
+Not covered by the trial: a fault before the firmware's start counter runs
+(in the ESP-IDF start-up, or from an sdkconfig that does not suit the box's
+bootloader) is never counted, and an image the original firmware installs
+starts as valid. Whether the box's bootloader itself returns to the previous
+slot is still to be tested. So every image that changes the ESP-IDF version
+or the sdkconfig is first tried on a box with a flash backup and serial
+access, before it is offered on any channel.
+
 `tools/esp32img.py body IMAGE OUT --host H --port P` makes the same body by
 hand, for a test server without the extension.
 

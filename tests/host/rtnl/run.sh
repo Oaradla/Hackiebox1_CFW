@@ -6,7 +6,7 @@
 set -e
 cd "$(dirname "$0")/../../.."
 T=tests/host/rtnl; B=build/host; mkdir -p $B
-SAN="-fsanitize=address,undefined -g -O1 -Uunix -Wall -Wno-unused-function"
+SAN="-fsanitize=address,undefined -fno-sanitize-recover=all -g -O1 -Uunix -Wall -Wno-unused-function"
 DEF="-DCFW_BUILD_TIME=1791775993u -DCFW_REVISION=\"test\" -DCFW_VERSION=\"0.1.0\" -DCFW_BUILD_DATE=\"x\""
 gcc $SAN $DEF -I$T -Itests/host/inc -Isrc -Isrc/cc3200 -o $B/rtnl_conn_test $T/conn_test.c
 $B/rtnl_conn_test

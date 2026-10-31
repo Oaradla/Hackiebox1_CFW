@@ -104,6 +104,15 @@ bool retained_fault(uint32_t rec[2])
     return found_fault;
 }
 
+#if CFW_HIBERNATE
+bool retained_nwp_broke(void)
+{
+    /* any start cause: a breakdown resets the chip as at power-on or, seen
+     * after a wake by an ear, as a hibernation exit */
+    return found[0] == (KIND_PROGRESS | RETAINED_NWP_START << 20);
+}
+#endif
+
 bool retained_state(uint32_t rec[2])
 {
     if (found_state)

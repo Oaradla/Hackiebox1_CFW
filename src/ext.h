@@ -43,6 +43,9 @@
  * without error. */
 void ext_answer(const uint8_t *msg, unsigned len);
 
+/* Before the tasks start. */
+void ext_init(void);
+
 /* F12 command 64: stores one field 100 (8 UID bytes and a
  * TBS file); true when the file was written. */
 bool ext_store(const uint8_t *field, unsigned len);

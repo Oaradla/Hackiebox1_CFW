@@ -3580,8 +3580,8 @@ static FRESULT mount_volume (	/* FR_OK(0): successful, !=0: an error occurred */
 		}
 		if (fs->fsize < (szbfat + (SS(fs) - 1)) / SS(fs)) return FR_NO_FILESYSTEM;	/* (BPB_FATSz must not be less than the size needed) */
 
-#if FF_TB_PATCHES	/* active FAT copy, BPB_ExtFlags at offset 40 for every FAT type, on the card (drive 0) only */
-		if (FF_VOLUMES == 1 || fs->pdrv == 0) {
+#if FF_TB_PATCHES	/* active FAT copy, BPB_ExtFlags of FAT32 with two or more FATs, on the card (drive 0) only; FAT12/16 use FAT 0 */
+		if ((FF_VOLUMES == 1 || fs->pdrv == 0) && fmt == FS_FAT32 && fs->n_fats >= 2) {
 			WORD ef = ld_word(fs->win + BPB_ExtFlags32);
 			DWORD js = ff_tb_journal_sector();
 

@@ -50,6 +50,7 @@ typedef struct
 {
     bool used;
     int fd;
+    uint32_t wait; /* sock_timeout(), ms */
     mbedtls_ssl_context ssl;
     mbedtls_ssl_config conf;
     mbedtls_x509_crt ca, own;
@@ -62,6 +63,9 @@ static mbedtls_ctr_drbg_context drbg;
 static bool rng_ready;
 static StaticSemaphore_t lock_mem;
 static SemaphoreHandle_t lock;
+/* the DRBG serves the handshakes of the cloud and the log activity */
+static StaticSemaphore_t rng_lock_mem;
+static SemaphoreHandle_t rng_lock;
 static uint8_t file_buf[CERT_MAX];
 
 static void init_once(void)
@@ -73,6 +77,7 @@ static void init_once(void)
     CRITICAL_ENTER();
     if (!lock)
     {
+        rng_lock = xSemaphoreCreateMutexStatic(&rng_lock_mem);
         lock = xSemaphoreCreateMutexStatic(&lock_mem);
     }
     CRITICAL_EXIT();
@@ -84,6 +89,14 @@ static void init_once(void)
         rng_ready = mbedtls_ctr_drbg_seed(&drbg, mbedtls_entropy_func, &entropy, (const unsigned char *)"tb", 2) == 0;
     }
     xSemaphoreGive(lock);
+}
+
+static int rng(void *ctx, unsigned char *out, size_t n)
+{
+    xSemaphoreTake(rng_lock, portMAX_DELAY);
+    int r = mbedtls_ctr_drbg_random(ctx, out, n);
+    xSemaphoreGive(rng_lock);
+    return r;
 }
 
 bool sock_busy(long r)
@@ -148,6 +161,41 @@ static void set_timeout(int fd, uint32_t ms)
     lwip_setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
 }
 
+static bool readable(int fd, uint32_t ms)
+{
+    fd_set r;
+    FD_ZERO(&r);
+    FD_SET(fd, &r);
+    struct timeval tv = {.tv_sec = ms / 1000, .tv_usec = ms % 1000 * 1000};
+    return lwip_select(fd + 1, &r, NULL, NULL, &tv) == 1;
+}
+
+/* A blocking connect waits for lwIP's SYN retries (minutes); this one
+ * gives up after ms. */
+static int connect_within(int fd, const struct sockaddr_in *a, uint32_t ms)
+{
+    int fl = lwip_fcntl(fd, F_GETFL, 0);
+    lwip_fcntl(fd, F_SETFL, fl | O_NONBLOCK);
+    int r = lwip_connect(fd, (const struct sockaddr *)a, sizeof *a);
+    if (r < 0 && errno == EINPROGRESS)
+    {
+        fd_set w;
+        FD_ZERO(&w);
+        FD_SET(fd, &w);
+        struct timeval tv = {.tv_sec = ms / 1000};
+        int err = ETIMEDOUT;
+        socklen_t l = sizeof err;
+        if (lwip_select(fd + 1, NULL, &w, NULL, &tv) == 1)
+        {
+            lwip_getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &l);
+        }
+        r = err ? -1 : 0;
+        errno = err;
+    }
+    lwip_fcntl(fd, F_SETFL, fl);
+    return r;
+}
+
 /* A whole flash file into file_buf (under the lock). */
 static long load(const char *name)
 {
@@ -195,7 +243,7 @@ static long tls_setup(tls_t *t, const char *ca)
         return SOCK_ERR_FILE;
     }
     n = load("/cert/private.der");
-    if (n < 0 || mbedtls_pk_parse_key(&t->key, file_buf, (size_t)n, NULL, 0, mbedtls_ctr_drbg_random, &drbg))
+    if (n < 0 || mbedtls_pk_parse_key(&t->key, file_buf, (size_t)n, NULL, 0, rng, &drbg))
     {
         debug_printf("sock: private key not usable\n");
         return SOCK_ERR_FILE;
@@ -208,7 +256,7 @@ static long tls_setup(tls_t *t, const char *ca)
     }
     mbedtls_ssl_conf_authmode(&t->conf, MBEDTLS_SSL_VERIFY_REQUIRED);
     mbedtls_ssl_conf_ca_chain(&t->conf, &t->ca, NULL);
-    mbedtls_ssl_conf_rng(&t->conf, mbedtls_ctr_drbg_random, &drbg);
+    mbedtls_ssl_conf_rng(&t->conf, rng, &drbg);
     mbedtls_ssl_conf_max_tls_version(&t->conf, MBEDTLS_SSL_VERSION_TLS1_2);
     if (mbedtls_ssl_conf_own_cert(&t->conf, &t->own, &t->key) || mbedtls_ssl_setup(&t->ssl, &t->conf))
     {
@@ -245,6 +293,7 @@ long sock_tls_connect(int16_t *s, uint32_t ip, uint16_t port, const char *ca)
     }
     t->used = true;
     t->fd = -1;
+    t->wait = 0;
     long r = tls_setup(t, ca);
     xSemaphoreGive(lock);
     *s = (int16_t)(SOCK_TLS_BASE + i);
@@ -259,21 +308,23 @@ long sock_tls_connect(int16_t *s, uint32_t ip, uint16_t port, const char *ca)
     }
     struct sockaddr_in a = {.sin_family = AF_INET, .sin_port = lwip_htons(port)};
     a.sin_addr.s_addr = lwip_htonl(ip);
-    if (lwip_connect(t->fd, (struct sockaddr *)&a, sizeof a) < 0)
+    if (connect_within(t->fd, &a, 10000) < 0)
     {
         return errno == ENOBUFS || errno == ENOMEM ? SOCK_NOBUFS : -errno;
     }
+    /* a peer that stops reading ends a send after 10 s (SOCK_AGAIN) */
+    struct timeval tv = {.tv_sec = 10};
+    lwip_setsockopt(t->fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof tv);
+    /* the socket blocks, so the handshake returns WANT_READ only when
+     * the server stayed silent for 10 s */
     set_timeout(t->fd, 10000);
     mbedtls_ssl_set_bio(&t->ssl, &t->fd, bio_send, bio_recv, NULL);
-    int h;
-    while ((h = mbedtls_ssl_handshake(&t->ssl)) != 0)
+    int h = mbedtls_ssl_handshake(&t->ssl);
+    if (h != 0)
     {
-        if (h != MBEDTLS_ERR_SSL_WANT_READ && h != MBEDTLS_ERR_SSL_WANT_WRITE)
-        {
-            uint32_t flags = mbedtls_ssl_get_verify_result(&t->ssl);
-            debug_printf("sock: handshake -0x%04x, verify 0x%lx\n", -h, (unsigned long)flags);
-            return SOCK_ERR_TLS;
-        }
+        uint32_t flags = mbedtls_ssl_get_verify_result(&t->ssl);
+        debug_printf("sock: handshake -0x%04x, verify 0x%lx\n", -h, (unsigned long)flags);
+        return SOCK_ERR_TLS;
     }
     set_timeout(t->fd, 1000);
     return 0;
@@ -302,6 +353,10 @@ long sock_recv(int16_t s, void *p, unsigned n)
     {
         int r = lwip_recv(s, p, n, 0);
         return r < 0 ? (errno == EAGAIN || errno == EWOULDBLOCK ? SOCK_AGAIN : -errno) : r;
+    }
+    if (t->wait && !mbedtls_ssl_get_bytes_avail(&t->ssl) && !readable(t->fd, t->wait))
+    {
+        return SOCK_AGAIN;
     }
     int r = mbedtls_ssl_read(&t->ssl, p, n);
     if (r == MBEDTLS_ERR_SSL_WANT_READ || r == MBEDTLS_ERR_SSL_WANT_WRITE)
@@ -338,10 +393,16 @@ void sock_close(int16_t s)
 void sock_timeout(int16_t s, uint32_t ms)
 {
     tls_t *t = slot_of(s);
-    int fd = t ? t->fd : s;
-    if (fd >= 0)
+    if (t)
     {
-        set_timeout(fd, ms);
+        /* waited for in sock_recv: a receive timeout inside a record
+         * header loses the bytes read so far (dynamic buffers keep the
+         * header on the stack) */
+        t->wait = ms;
+    }
+    else if (s >= 0)
+    {
+        set_timeout(s, ms);
     }
 }
 

@@ -41,7 +41,7 @@ printf '{\n  "general": {\n    "activeImg": "cfw1",\n    "stateFile" : "/revvox/
 cp $B/card/revvox/boot/ngCfg.json "$B/card/revvox/boot/NGCFG~1.JSO"
 # cfw1 (the running slot) holds an image with the marker
 cp $B/img/good.bin $B/card/revvox/boot/ng-cfw1.bin
-gcc -fsanitize=address,undefined -g -O1 -Wall -Wno-unused-function -DCFW_BUILD_TIME=${RUNNING}u -DCFW_VERSION=\"0.1.0\" \
+gcc -fsanitize=address,undefined -fno-sanitize-recover=all -g -O1 -Wall -Wno-unused-function -DCFW_BUILD_TIME=${RUNNING}u -DCFW_VERSION=\"0.1.0\" \
   -I$T/inc -Itests/host/inc -Isrc -Isrc/cc3200 -o $B/update_test $T/harness.c
 $B/update_test $B/card $B/img
 python3 tools/bootstate.py show $B/card/revvox/boot/ngstate.bin

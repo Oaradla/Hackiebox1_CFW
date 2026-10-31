@@ -70,6 +70,15 @@
 
 #define PAGE_FILE "/cfw/setup.htm"
 
+/* A request ends 30 s after its connection was taken, so that a client
+ * that trickles or stops reading does not hold the server. */
+static uint32_t req_start;
+
+static bool req_over(void)
+{
+    return !net_page_on() || tick_ms() - req_start >= 30000;
+}
+
 static bool send_all(int16_t s, const void *d, unsigned n)
 {
     const uint8_t *p = d;
@@ -77,7 +86,7 @@ static bool send_all(int16_t s, const void *d, unsigned n)
     {
         long r = sock_send(s, p, n > 1400 ? 1400 : n);
         monitor_mark(ACT_CLOUD);
-        if (r <= 0 && (r != SOCK_AGAIN || !net_page_on()))
+        if ((r <= 0 && r != SOCK_AGAIN) || req_over())
         {
             return false;
         }
@@ -108,9 +117,13 @@ static long rx(int16_t s, void *d, unsigned n)
     uint32_t t0 = tick_ms();
     for (;;)
     {
+        if (req_over())
+        {
+            return 0;
+        }
         long k = sock_recv(s, d, n > 1400 ? 1400 : n); /* 1 s receive timeout */
         monitor_mark(ACT_CLOUD);
-        if (k != SOCK_AGAIN || !net_page_on() || tick_ms() - t0 >= 5000)
+        if (k != SOCK_AGAIN || tick_ms() - t0 >= 5000)
         {
             return k;
         }
@@ -169,6 +182,7 @@ static void handle(int16_t s, uint8_t *work, unsigned wn, char *buf, unsigned bn
     http_req_t r = {0};
     unsigned have = 0;
     int h;
+    req_start = tick_ms();
     const char *res = "bad";
     while (!(h = setup_http_head(buf, have, &r)) && have < bn - 1)
     {

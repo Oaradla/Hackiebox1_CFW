@@ -30,6 +30,7 @@
 #include "board.h"
 #include "cloud.h"
 #include "debug.h"
+#include "ext.h"
 #include "dma.h"
 #include "handover.h"
 #include "i2c.h"
@@ -79,6 +80,7 @@ static void sd_test(void)
                  (unsigned long)(tick_ms() - t0), (unsigned long)sd_sectors());
     if (!ok)
     {
+        bootstate_report(BOOT_CHECK_CARD, false);
         return;
     }
     FRESULT r = f_mount(&fs, "", 1);
@@ -199,6 +201,7 @@ int main(void)
 
     sound_init();
     log_init();
+    ext_init();
     player_init();
     cloud_init();
     power_restore();
