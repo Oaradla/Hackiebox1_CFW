@@ -52,14 +52,16 @@ static uint32_t le32(const uint8_t *p)
 /* lowest cfw slot that is neither the running one, the active one of the
  * state file nor the helper slot and whose file is missing or carries the family marker CFW1
  * at offset 93 of its build block. Slot numbers of the state file and the
- * handover record: cfw1..3 = 3..5. */
+ * handover record: cfw1..3 = 3..5. Without an active slot in the state file
+ * the bootloader starts activeImg of its configuration, which is cfw1 on
+ * the cards of this firmware. */
 unsigned update_free_slot(void)
 {
     static FIL f;
     const handover_t *h = handover_get();
     uint8_t s[32];
     bool state = bootstate_read(s);
-    unsigned active = state ? s[4] : 255, helper = state ? s[10] : 255;
+    unsigned active = state && s[4] != 255 ? s[4] : 3, helper = state ? s[10] : 255;
     for (unsigned n = 1; n <= 3; n++)
     {
         if ((h->valid && h->slot == 2 + n) || active == 2 + n || helper == 2 + n)
@@ -104,23 +106,12 @@ bool update_begin(uint32_t length)
 {
     update_abort();
     /* before anything is written. */
-    if (length < TRAILER || length >= 0x80000000u)
+    if (length < TRAILER || length > UPDATE_SLOT_MAX)
     {
-        debug_printf("update: %lu B < %u, abort\n", (unsigned long)length, TRAILER);
+        debug_printf("update: %lu B, abort\n", (unsigned long)length);
         return false;
     }
-    if (length > UPDATE_SLOT_MAX)
-    {
-        debug_printf("update: %lu B > %u, abort\n", (unsigned long)length,
-                     UPDATE_SLOT_MAX);
-        return false;
-    }
-    if (!handover_get()->valid)
-    {
-        debug_printf("update: no SD bootloader, abort\n");
-        return false;
-    }
-    unsigned n = update_free_slot();
+    unsigned n = handover_get()->valid ? update_free_slot() : 0; /* only under the SD bootloader */
     if (!n)
     {
         debug_printf("update: no free slot, abort\n");

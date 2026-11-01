@@ -109,7 +109,7 @@ bool retained_nwp_broke(void)
 {
     /* any start cause: a breakdown resets the chip as at power-on or, seen
      * after a wake by an ear, as a hibernation exit */
-    return found[0] == (KIND_PROGRESS | RETAINED_NWP_START << 20);
+    return found[0] == (KIND_PROGRESS | RETAINED_NWP_START << 20) && (found[1] & REC_VERSION);
 }
 #endif
 

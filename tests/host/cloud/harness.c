@@ -1305,7 +1305,29 @@ int main(int argc, char **argv)
         show_request(i);
     }
     CHECK(n_sent == 5 && strstr(sent[0], "/v1/ota/4?cv=34471936") && strstr(sent[1], "/v1/ota/5?cv=1 ") && strstr(sent[2], "/v1/ota/2?cv=") && strstr(sent[3], "/v1/ota/6?cv=1534781997") && strstr(sent[4], "/v1/ota/3?cv=1779199517 "), "order 4 5 2 6 3, item 3 with the build number of 3.4.0");
-    printf("T4b update check under the original bootloader: the same items, item 3 offered is abandoned\n");
+    CHECK(!strstr(sent[4], "X-CFW-Rolled-Back"), "no rollback in the state file: no rollback header");
+    printf("T4a2 item 3 names the build the bootloader rolled back from\n");
+    bs_valid = true;
+    for (int c = 0; c < 3; c++) /* result 2, result 1, result 2 with build 0 */
+    {
+        memset(bs_file, 0, sizeof bs_file);
+        bs_file[9] = c == 1 ? 1 : 2;
+        memcpy(bs_file + 12, c == 2 ? "\0\0\0\0" : "\x01\x02\x03\x04", 4);
+        reset();
+        update_checked = false;
+        for (int i = 0; i < 5; i++)
+        {
+            serve("HTTP/1.1 304 Not Modified\r\n\r\n", 0);
+        }
+        update_check(1);
+        CHECK(n_sent == 5 && !strstr(sent[3], "Rolled") &&
+                  (c ? !strstr(sent[4], "Rolled") : strstr(sent[4], "\r\nX-CFW-Rolled-Back: 67305985\r\n") != NULL),
+              "%s", c == 0 ? "result 2: the rolled-back build on item 3 only" : c == 1 ? "result 1: no header"
+                                                                                       : "build 0: no header");
+    }
+    bs_valid = false;
+    memset(bs_file, 0, sizeof bs_file);
+    printf("T4b update check under the original bootloader: item 3 not asked for\n");
     reset();
     update_checked = false;
     ho.valid = false;
@@ -1314,11 +1336,10 @@ int main(int argc, char **argv)
     {
         serve("HTTP/1.1 304 Not Modified\r\n\r\n", 0);
     }
-    serve("HTTP/1.1 200 OK\r\nContent-Length: 5000\r\n\r\nxxxx", 0);
     update_check(1);
     ho.valid = true;
-    CHECK(n_sent == 5 && strstr(sent[4], "/v1/ota/3?") && !up_begun, "items 4 5 2 6 3, nothing installed (%d requests)", n_sent);
-    printf("T4c no free slot: item 3 asked for, an offer abandoned\n");
+    CHECK(n_sent == 4 && strstr(sent[3], "/v1/ota/6?") && !up_begun, "items 4 5 2 6, nothing installed (%d requests)", n_sent);
+    printf("T4c no free slot: item 3 not asked for\n");
     reset();
     update_checked = false;
     free_slot = 0;
@@ -1327,10 +1348,9 @@ int main(int argc, char **argv)
     {
         serve("HTTP/1.1 304 Not Modified\r\n\r\n", 0);
     }
-    serve("HTTP/1.1 200 OK\r\nContent-Length: 5000\r\n\r\nxxxx", 0);
     update_check(1);
     free_slot = 2;
-    CHECK(n_sent == 5 && !up_begun, "item 3 asked for, not installed (%d requests)", n_sent);
+    CHECK(n_sent == 4 && !up_begun, "items 4 5 2 6 only (%d requests)", n_sent);
     printf("T4f item 2 answered 200: abandoned, item 6 follows\n");
     reset();
     update_checked = false;
@@ -1438,8 +1458,26 @@ int main(int argc, char **argv)
         update_checked = false;
         up_begun = 0;
         serve("HTTP/1.1 200 OK\r\nContent-Length: 5000\r\n\r\n", 0);
+        for (int i = 0; i < 4; i++) /* items 5, 2, 6, 3 */
+        {
+            serve("HTTP/1.1 304 Not Modified\r\n\r\n", 0);
+        }
         update_check(1);
-        CHECK(!up_begun && n_sent == 1, "200 for item 4: abandoned, no further item");
+        CHECK(!up_begun && n_sent == 5 && strstr(sent[4], "/v1/ota/3?"), "200 for item 4: abandoned, items 5 2 6 3 follow");
+        for (int item = 1; item <= 2; item++) /* the offers of items 5 and 6 */
+        {
+            reset();
+            update_checked = false;
+            for (int i = 0; i < 5; i++)
+            {
+                serve(i == item * 2 - 1 ? "HTTP/1.1 200 OK\r\nContent-Length: 5000\r\n\r\nxxxx"
+                                        : "HTTP/1.1 304 Not Modified\r\n\r\n",
+                      0);
+            }
+            update_check(1);
+            CHECK(!up_begun && n_sent == 5 && strstr(sent[4], "/v1/ota/3?"), "200 for item %d: abandoned, item 3 follows",
+                  item == 1 ? 5 : 6);
+        }
     }
 
     printf("T5 update check, item 5 answered 404, item 6 503\n");

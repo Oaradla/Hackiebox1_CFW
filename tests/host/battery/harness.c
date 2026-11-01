@@ -36,11 +36,12 @@ static int failures;
 static uint32_t sim_ms = 1000;
 uint32_t tick_ms(void) { return sim_ms; }
 void vTaskDelay(TickType_t t) { sim_ms += t; }
-static bool station;
-static uint32_t battery_mv = 3900;
-bool board_on_station(void) { return station; }
-bool board_ear_big_pressed(void) { return false; }
-bool board_ear_small_pressed(void) { return false; }
+static bool station, ears;
+static uint32_t battery_mv = 3900, station_at = UINT32_MAX;
+bool board_on_station(void) { return station || sim_ms >= station_at; }
+bool board_ear_big_pressed(void) { return ears; }
+bool board_ear_small_pressed(void) { return ears; }
+void port_busy_ms(unsigned ms) { sim_ms += ms; }
 uint32_t battery_measure(void) { return battery_mv; }
 uint32_t battery_last_raw(void) { return battery_mv / 4; }
 uint32_t battery_wake_measure(void) { return battery_mv; }
@@ -105,11 +106,12 @@ bool sound_park(uint32_t max_ms)
     (void)max_ms;
     return true;
 }
+static int orange_blinks;
+static bool led_lit;
 void led_set(uint8_t r, uint8_t g, uint8_t b)
 {
-    (void)r;
-    (void)g;
-    (void)b;
+    orange_blinks += r == 170 && g == 48 && !b;
+    led_lit = r || g || b;
 }
 
 /* --- system --- */
@@ -123,6 +125,8 @@ void monitor_feed(void) {}
 bool monitor_in_update_round(void) { return false; }
 void panic_power_phase(power_phase_t p) { (void)p; }
 unsigned start_reason(void) { return 0; }
+static bool broke;
+bool retained_nwp_broke(void) { return broke; }
 bool retained_state(uint32_t rec[2])
 {
     (void)rec;
@@ -245,6 +249,43 @@ int main(int argc, char **argv)
         run(3000);
     }
     CHECK(went_off && prompt_ended, "off once the prompt has ended");
+
+    printf("B8 start after a breakdown in the network processor's start\n");
+    broke = station = true;
+    went_off = false;
+    if (!setjmp(off))
+    {
+        power_wake_check();
+    }
+    CHECK(!went_off, "on the station: the box starts");
+    station = false;
+    ears = true;
+    orange_blinks = 0;
+    uint32_t t0 = sim_ms;
+    if (!setjmp(off))
+    {
+        power_wake_check();
+    }
+    CHECK(went_off && !led_lit, "off the station, an ear held: off again, LED off");
+    CHECK(orange_blinks == 5 && sim_ms - t0 == 2000, "five orange blinks of 200 ms (%d, %u ms)", orange_blinks,
+          (unsigned)(sim_ms - t0));
+    ears = false;
+    went_off = false;
+    orange_blinks = 0;
+    station_at = sim_ms + 1100;
+    if (!setjmp(off))
+    {
+        power_wake_check();
+    }
+    station_at = UINT32_MAX;
+    CHECK(!went_off && !led_lit && orange_blinks == 3, "placed on the station in the third blink: the box starts");
+    broke = false;
+    went_off = false;
+    if (!setjmp(off))
+    {
+        power_wake_check();
+    }
+    CHECK(!went_off, "a power-on start without the mark: the box starts");
     printf("%d failure(s)\n", failures);
     return failures != 0;
 }

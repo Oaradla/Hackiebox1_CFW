@@ -105,7 +105,7 @@ bool retained_state(uint32_t rec[2]);
 void retained_store_state(uint32_t w1, uint32_t w2);
 /* Stores the progress record with another marker. */
 void retained_progress(uint32_t marker);
-#define RETAINED_NWP_START 2u
+#define RETAINED_NWP_START 2u /* the SD bootloader reads it as well: fixed */
 /* The last start broke off while the network processor started: an empty
  * battery that broke down under its load. */
 bool retained_nwp_broke(void);

@@ -242,6 +242,7 @@ static void __attribute__((noreturn)) restart_unconfirmed(const char *why)
 {
     debug_printf("bootstate: trial unconfirmed (%s, ok %x bad %x), restart\n", why, checks_ok, checks_failed);
     vTaskDelay(100);
+    retained_progress(1); /* a network processor start cut off here is no breakdown */
     MAP_PRCMMCUReset(true);
     for (;;)
         ;

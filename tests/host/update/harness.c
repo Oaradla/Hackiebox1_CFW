@@ -65,6 +65,7 @@ bool sound_park(uint32_t ms)
 }
 void net_shutdown(void) {}
 bool fault_active(void) { return false; }
+void retained_progress(uint32_t marker) { (void)marker; }
 static int trial_confirmations;
 void ext_trial_confirmed(void) { trial_confirmations++; }
 
@@ -317,6 +318,9 @@ int main(int argc, char **argv)
         f_write(&f, s, 32, &w);
         f_close(&f);
     }
+    ho.slot = 4;
+    CHECK(update_free_slot() == 3, "running cfw2, active 255 = activeImg cfw1: slot 3");
+    ho.slot = 3;
 
     printf("T lengths refused before writing\n");
     CHECK(!update_begin(175), "175 bytes");

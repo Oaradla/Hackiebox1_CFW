@@ -31,6 +31,11 @@ if [ -n "$(git -C "$BL" status --porcelain --untracked-files=no)" ]; then
     echo "release: the SD bootloader checkout has changes; commit first" >&2
     exit 1
 fi
+# the trial start patch with its image size check (cfw-trial-boot or the patched clone of build.sh)
+if ! grep -q "Image too short for its hash" "$BL/sd-bootloader-ng/bootmanager/main.c"; then
+    echo "release: the SD bootloader checkout lacks the current trial start patch" >&2
+    exit 1
+fi
 BL_REV=$(git -C "$BL" rev-parse --short=7 HEAD)
 OUT=build/release
 PKG=$OUT/pkg
@@ -46,9 +51,18 @@ echo "== SD bootloader"
 BL_OUT="$BL/exe/sd-bootloader-ng"
 cp "$BL_OUT/sd/revvox/boot/ngbootloader.bin" "$PKG/cc3200/ngbootloader.bin"
 mkdir -p "$PKG/cc3200/flash/sys" "$PKG/cc3200/card/cfw"
-cp "$BL_OUT/flash/sys/mcuimg.bin" "$PKG/cc3200/flash/sys/mcuimg.bin"
+# the preloader in the flash is the unchanged one of the upstream release
+PRE_URL=https://github.com/toniebox-reverse-engineering/hackiebox_cfw_ng/releases/download/hbng_bl_v0.9.3d/hbng-bootloader.release_v0.9.3d.zip
+PRE_SHA=c002b8925f814b96dd1d691a4f27fa23e1f1b70966481f715ca254b667fc5354
+curl -sfL -o "$OUT/preloader.zip" "$PRE_URL"
+unzip -p "$OUT/preloader.zip" flash/sys/mcuimg.bin > "$PKG/cc3200/flash/sys/mcuimg.bin"
+rm "$OUT/preloader.zip"
+if ! echo "$PRE_SHA  $PKG/cc3200/flash/sys/mcuimg.bin" | sha256sum -c --quiet; then
+    echo "release: the upstream preloader differs from v0.9.3d" >&2
+    exit 1
+fi
 # the card for a first installation: the bootloader and its settings, this firmware in slot cfw1 started on its
-# own, and the setup page; the original firmware's slot (ng-ofw1.bin) comes from the box
+# own, and the setup page; the slot ofw1 starts the original bootloader from /sys/pre-img.bin in the flash
 cp -r "$BL_OUT/sd/revvox" "$PKG/cc3200/card/"
 # the bootloader's patches change the original firmware; they are not part of this package
 rm -rf "$PKG/cc3200/card/revvox/boot/patch"
@@ -101,6 +115,6 @@ tools/third_party_notices.sh "$IDF" > "$PKG/THIRD-PARTY-NOTICES.txt"
     $(find cc3200/card -type f | sort) > SHA256SUMS)
 
 ZIP=$OUT/toniebox-cfw-$V.zip
-(cd "$PKG" && zip -q -0 -X -r "../$(basename "$ZIP")" README.md THIRD-PARTY-NOTICES.txt SHA256SUMS cc3200 esp32 setup.htm)
+(cd "$PKG" && zip -q -0 -X -r "../$(basename "$ZIP")" README*.md THIRD-PARTY-NOTICES.txt SHA256SUMS cc3200 esp32 setup.htm)
 echo "== $ZIP (CFW_$V, $REV; CC3200 build $CC_BUILD, SD bootloader $BL_REV, ESP32 build $ESP_BUILD; setup page $PAGE_VERSION, needs $PAGE_NEEDS)"
 unzip -v "$ZIP" | sed -n '4,20p'

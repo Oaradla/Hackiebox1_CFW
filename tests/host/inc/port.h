@@ -24,6 +24,9 @@
 #define PORT_CERT_INPUT 1
 #define PORT_LANGUAGE_KEY 0
 
+/* defined by a harness that needs it */
+void port_busy_ms(unsigned ms);
+
 static inline void __attribute__((noreturn)) port_restart(void)
 {
     printf("RESTART\n");

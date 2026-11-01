@@ -30,9 +30,10 @@ ESP32 image only:
     wpa_supplicant (BSD-3-Clause); the full list of ESP-IDF's components and
     their licences is in ESP-IDF's COPYRIGHT.rst, included at the end.
 
-The SD bootloader (cc3200/ngbootloader.bin, cc3200/flash/sys/mcuimg.bin) is
-built from HackieboxNG by SciLor and contributors with the changes in the
-hackiebox_cfw_ng_cfw repository; the upstream project publishes no licence
+The SD bootloader (cc3200/ngbootloader.bin) is built from HackieboxNG by
+SciLor and contributors with the changes in the hackiebox_cfw_ng_cfw
+repository; its preloader (cc3200/flash/sys/mcuimg.bin) is the unchanged one
+of the HackieboxNG release v0.9.3d. The upstream project publishes no licence
 file.
 HEAD
 section "Opus 1.1 (third_party/opus-1.1/COPYING)"

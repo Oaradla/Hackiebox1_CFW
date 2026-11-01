@@ -1289,8 +1289,8 @@ static bool install_page(conn_t *c)
 }
 
 /* the items 4, 5, 2, 6, 3 of the original firmware under
- * either bootloader; item 2 is never installed, item 3 only into a free SD
- * slot. An answer 200 that is not installed is abandoned. */
+ * either bootloader; item 3 is only asked for and installed with a free SD
+ * slot. Any other answer 200 is abandoned and the next item asked. */
 static void update_check(uint32_t s)
 {
 #ifdef CFW_ESP32
@@ -1308,13 +1308,23 @@ static void update_check(uint32_t s)
     update_checked = true;
     for (unsigned i = 0; i < sizeof ids / sizeof ids[0]; i++)
     {
+        if (ids[i] == 3 && !slot)
+        {
+            continue; /* nothing to install it into */
+        }
         char path[48];
         snprintf(path, sizeof path, "/v1/ota/%u?cv=%lu", ids[i], (unsigned long)current_version(ids[i]));
+        char extra[40] = "";
+        uint8_t bs[32];
+        if (ids[i] == 3 && bootstate_read(bs) && bs[9] == 2 && le32(bs + 12))
+        {
+            /* the build the bootloader went back from */
+            snprintf(extra, sizeof extra, "X-CFW-Rolled-Back: %lu\r\n", (unsigned long)le32(bs + 12));
+        }
         conn_t c;
         uint32_t deadline = ids[i] == 6 ? 240000 : 60000;
-        cloud_error_t e = exchange(&c, s, deadline, NULL, "GET", path, NULL, NULL, 0);
-        bool offered = !e && c.status == 200;
-        if (offered && ids[i] == 3 && slot)
+        cloud_error_t e = exchange(&c, s, deadline, NULL, "GET", path, extra, NULL, 0);
+        if (!e && c.status == 200 && ids[i] == 3)
         {
             bool ok = install_image(&c);
             close_conn(&c);
@@ -1326,9 +1336,7 @@ static void update_check(uint32_t s)
             return; /* installed: no further item; else none in this start */
         }
         close_conn(&c);
-        /* items 2 and 3 offered here are abandoned (the
-         * request line above logs the status). */
-        if (e || (offered && ids[i] != 2 && ids[i] != 3))
+        if (e)
         {
             return; /* no further item in this start */
         }

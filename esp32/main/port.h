@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "esp_attr.h"
+#include "esp_rom_sys.h"
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -50,5 +51,11 @@ bool port_language_write(uint8_t l);
 
 /* Peripheral rails off, then a software reset. */
 void port_restart(void) __attribute__((noreturn));
+
+/* A busy wait, also before the scheduler runs. */
+static inline void port_busy_ms(unsigned ms)
+{
+    esp_rom_delay_us(ms * 1000u);
+}
 
 #endif

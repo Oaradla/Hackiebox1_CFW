@@ -514,6 +514,8 @@ void power_wake_check(void)
     uint32_t mv = battery_wake_measure();
     debug_printf("pwr: %s, %lu mV\n", broke ? "broke down" : "off station", (unsigned long)mv);
     bool green = !broke && mv > 3299;
+    /* after a breakdown: five orange blinks of 200 ms, and only the station
+     * lets the start go on */
     for (int phase = 0; phase < 10; phase++)
     {
         if (phase % 2)
@@ -530,11 +532,15 @@ void power_wake_check(void)
         }
         for (int i = 0; i < 100; i++)
         {
-            if (board_on_station() || board_ear_big_pressed() || board_ear_small_pressed())
+            if (board_on_station() || (!broke && (board_ear_big_pressed() || board_ear_small_pressed())))
             {
                 led_set(0, 0, 0);
                 debug_printf("pwr: input, start\n");
                 return;
+            }
+            if (broke)
+            {
+                port_busy_ms(2);
             }
         }
     }

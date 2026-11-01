@@ -14,6 +14,7 @@
 #include "driverlib/rom.h"
 #include "driverlib/rom_map.h"
 #include "driverlib/prcm.h"
+#include "driverlib/utils.h"
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -46,6 +47,12 @@
 /* The box language in /settings.cfg, not in a key of its
  * own (unlike the ESP32). */
 #define PORT_LANGUAGE_KEY 0
+
+/* A busy wait, also before the scheduler runs. */
+static inline void port_busy_ms(unsigned ms)
+{
+    UtilsDelay(ms * (80000u / 3u));
+}
 
 /* Reset of the application processor with its peripherals. */
 static inline void __attribute__((noreturn)) port_restart(void)

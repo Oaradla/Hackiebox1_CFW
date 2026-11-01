@@ -38,9 +38,9 @@ zip to unpack onto the card.
 **CC3200 box (SD card).** For a first installation the preloader goes to the
 flash (`cc3200/flash/sys/mcuimg.bin` to `/sys/mcuimg.bin`, after moving the
 original `/sys/mcuimg.bin` to `/sys/pre-img.bin`), and `cc3200/card/` to the
-card, plus the original `/sys/mcuimg.bin` of the box as
-`/revvox/boot/ng-ofw1.bin`. The server goes into `/cfw/config.txt` on the
-card (`host=`, `port=`).
+card. The slot `ofw1` starts the original bootloader from `/sys/pre-img.bin`
+in the flash, and with it the original firmware. The server goes into `/cfw/config.txt` on the card (`host=`,
+`port=`).
 
 To change a box that has HackieboxNG already, copy `cc3200/ngbootloader.bin`
 over `/revvox/boot/ngbootloader.bin` on the card: this SD bootloader starts a
