@@ -7,7 +7,7 @@ generations of the first Toniebox and the setup page that belongs to it.
 | --- | --- | --- |
 | `cc3200/ng-cfw.bin` | Toniebox with the CC3200 chip (SD bootloader slot image) | @CC3200_BUILD@ |
 | `cc3200/ngbootloader.bin` | Toniebox with the CC3200 chip: the HackieboxNG SD bootloader with trial start and automatic return on updates | HackieboxNG with the trial-start patch |
-| `cc3200/flash/sys/mcuimg.bin` | its preloader for the flash of the box (`/sys/mcuimg.bin`) | HackieboxNG with the trial-start patch |
+| `cc3200/flash/sys/mcuimg.bin` | its preloader for the flash of the box (`/sys/mcuimg.bin`) | HackieboxNG v0.9.3d release, unchanged |
 | `cc3200/card/` | the SD card for a first installation: bootloader, its boot state file, this firmware in slot cfw1, the setup page, `ngCfg.json` set to start it | |
 | `esp32/toniebox-cfw-esp32.bin` | Toniebox with the ESP32-S3 chip (app image) | @ESP32_BUILD@ |
 | `setup.htm` | the setup page of the box (Wi-Fi, server, certificates), version @PAGE_VERSION@, needs at least @PAGE_NEEDS@ | |
@@ -40,7 +40,10 @@ flash (`cc3200/flash/sys/mcuimg.bin` to `/sys/mcuimg.bin`, after moving the
 original `/sys/mcuimg.bin` to `/sys/pre-img.bin`), and `cc3200/card/` to the
 card. The slot `ofw1` starts the original bootloader from `/sys/pre-img.bin`
 in the flash, and with it the original firmware. The server goes into `/cfw/config.txt` on the card (`host=`,
-`port=`).
+`port=`). The box checks the server against the CA in `/cert/ca.der` of the
+flash, which still holds the manufacturer's CA: upload teddyCloud's `ca.der`
+on the setup page (Certificates), or set `ca=` to the file in `/cert/` that
+holds it (`ca=c2.der` on a box with the alternative-CA patch).
 
 To change a box that has HackieboxNG already, copy `cc3200/ngbootloader.bin`
 over `/revvox/boot/ngbootloader.bin` on the card: this SD bootloader starts a
@@ -49,7 +52,7 @@ Copy `cc3200/ng-cfw.bin` to `/revvox/boot/ng-cfw1.bin` and `setup.htm` to
 `/cfw/setup.htm`. In `/revvox/boot/ngCfg.json` set, under `general`,
 `"activeImg": "cfw1"` and `"stateFile": "/revvox/boot/ngstate.bin"`. The
 server goes into `/cfw/config.txt` (`host=`, `port=`), or set it on the
-setup page. The previous `activeImg` (usually `"ofw1"`) starts the original
+setup page, and teddyCloud's CA as above. The previous `activeImg` (usually `"ofw1"`) starts the original
 firmware again.
 
 **ESP32 box (serial port).** Keep a full flash dump of the box first. With
@@ -65,7 +68,9 @@ replaced by teddyCloud later.
 GPL-3.0-or-later. The source code of this release is the tag @VERSION@
 of the Hackiebox1_CFW repository. `cc3200/ngbootloader.bin` is built from
 HackieboxNG (commit aad9035) with the trial-start patch of the
-hackiebox_cfw_ng_cfw repository, commit @BOOTLOADER_REVISION@. The images
+hackiebox_cfw_ng_cfw repository, commit @BOOTLOADER_REVISION@.
+`cc3200/flash/sys/mcuimg.bin` is the preloader of the HackieboxNG release
+hbng_bl_v0.9.3d, unchanged. The images
 contain third-party code under its own licence (Opus, FatFs, FreeRTOS, TI SimpleLink and SDK, ESP-IDF and
 its components): `THIRD-PARTY-NOTICES.txt` lists it with the licence texts.
 

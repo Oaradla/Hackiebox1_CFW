@@ -1287,7 +1287,7 @@ static int read_block(void)
     }
     if (read_pos >= end_pos)
     {
-        debug_printf("pl: language chapter end %lu (7380)\n", (unsigned long)read_pos);
+        debug_printf("pl: language end %lu (7380)\n", (unsigned long)read_pos);
         return 0;
     }
     wait_language_chapter();

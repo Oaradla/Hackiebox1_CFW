@@ -203,6 +203,10 @@ static const char *config_parse(char *text, server_cfg_t *c)
 #ifdef CFW_ESP32
     strcpy(c->ntp, "pool.ntp.org");
 #endif
+    if (!strncmp(text, "\xEF\xBB\xBF", 3))
+    {
+        text += 3; /* UTF-8 byte order mark */
+    }
     for (char *line = text; line && *line;)
     {
         char *next = strchr(line, '\n');
@@ -1764,6 +1768,12 @@ void cloud_content(const uint8_t uid[8], const uint8_t *token, uint32_t offset, 
         j.has_token = true;
         memcpy(j.token, token, 32);
     }
+#ifdef CFW_ESP32
+    if (!ext_hello_received())
+    {
+        offset = 0; /* the original ESP firmware asks for the whole content */
+    }
+#endif
     cloud_download_t *d = &cloud_dl;
     CRITICAL_ENTER();
     /* A request for the rest of the same download from its position keeps what
@@ -2799,15 +2809,14 @@ static void cert_input(void)
 
 /* --- setup page (page.c in this activity) --- */
 
-/* Deletes host and port of /cfw/config.txt and the CA file it names; the
- * vendor CA /cert/ca.der stays, as the original firmware uses it too. The
- * line ca= stays, so that a CA uploaded next goes where the next start
- * looks for it. Takes effect at the next start. */
+/* Deletes host and port of /cfw/config.txt. The CA files in the flash
+ * stay, as the original firmware may use them too (ca=c2.der after the
+ * alternative-CA patch). The line ca= stays, so that a CA uploaded next
+ * goes where the next start looks for it. Takes effect at the next start. */
 const char *cloud_server_forget(void)
 {
     static FIL f;
     bool vendor = !strcmp(cfg.ca, "/cert/ca.der");
-    long d = vendor ? 0 : flashfs_delete(cfg.ca);
     FRESULT r = f_unlink("/cfw/config.txt");
     if (!vendor && (r == FR_OK || r == FR_NO_FILE))
     {
@@ -2821,7 +2830,7 @@ const char *cloud_server_forget(void)
             r = f_close(&f) != FR_OK || w != (UINT)n ? FR_DISK_ERR : r;
         }
     }
-    debug_printf("cloud: config deleted %d, %s %ld\n", (int)r, cfg.ca, d);
+    debug_printf("cloud: config deleted %d\n", (int)r);
     return r == FR_OK || r == FR_NO_FILE ? "ok" : "card";
 }
 

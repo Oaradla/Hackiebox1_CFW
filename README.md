@@ -137,7 +137,8 @@ and whether the battery is low. teddyCloud shows it on the box's card.
 ### Server, setup and updates
 
 - **Server address on the SD card.** The box reads its server (host, port,
-  CA certificate, time server) from `/cfw/config.txt` or the setup page.
+  CA certificate; on the ESP32 box also the time server) from
+  `/cfw/config.txt` or the setup page.
   It never contacts the manufacturer's servers on its own; nothing in the
   flash has to be patched to point it to teddyCloud.
 - **Own setup page** (in several languages): Wi-Fi with a list of the

@@ -24,7 +24,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="cfw-page-version" content="0.2">
+<meta name="cfw-page-version" content="0.3">
 <meta name="cfw-page-requires" content="CFW_0.0.1">
 <title>Toniebox setup</title>
 <link rel="icon" href="data:,">
@@ -114,7 +114,7 @@ const T = {
     reset: "Delete", rwifi: "Delete all stored Wi-Fi networks", rcontent: "Delete all local contents, tonie settings and box settings", rserver: "Delete the server settings",
     qwifi: "Delete all stored Wi-Fi networks? The box then only joins a network that is set up again here.",
     qcontent: "Delete all audio contents on the card (not the sound prompts), the tonie settings and the box settings? Contents are downloaded again when a figure is placed.",
-    qserver: "WARNING: this deletes the server address, the port and the CA file of the server (its name stays). Without them the box reaches no server until they are set again here. Delete?",
+    qserver: "WARNING: this deletes the server address and the port; the certificates stay. Without them the box reaches no server until they are set again here. Delete?",
     done: "Deleted.", rnext: "Deleted; takes effect at the next start.",
     title: "Toniebox setup", lang: "Language", langl: "Language of the box (sound prompts and this page)", lsave: "Save language",
     wifi: "Wi-Fi", net: "Network", rescan: "Search again", ssid: "Network name (SSID)", key: "Password", join: "Connect",
@@ -126,7 +126,7 @@ const T = {
     portbad: "The port must be 1 to 65535.", long: "/cfw/config.txt would be longer than 1024 bytes.",
     card: "The SD card could not be written.", der: "Not a single DER element of 2 to 4096 bytes; not written.",
     flash: "Writing to the flash failed.", choose: "Choose a network ...", none: "No networks found",
-    ssidlen: "Enter a network name of 1 to 32 bytes.", keylen: "The password can have at most 63 bytes.",
+    ssidlen: "Enter a network name of 1 to 32 bytes.", keylen: "The password can have at most 63 bytes, or 64 hexadecimal digits.",
     joining: "The box now connects (blue blinking); this access point closes.", lstored: "Language stored; used from now on.",
     nothing: " Nothing was stored.", written: "written to the flash", nextstart: ". Used from the next start.", nofile: "Choose a file first.",
     pver: "Setup page", fw: "firmware", needs: "this page needs at least",
@@ -137,7 +137,7 @@ const T = {
     reset: "Löschen", rwifi: "Alle gespeicherten WLAN-Netze löschen", rcontent: "Alle lokalen Audioinhalte, Tonie- und Box-Einstellungen löschen", rserver: "Server-Einstellungen löschen",
     qwifi: "Alle gespeicherten WLAN-Netze löschen? Die Box verbindet sich danach nur mit einem Netz, das hier neu eingerichtet wird.",
     qcontent: "Alle Audioinhalte auf der Karte (nicht die Ansagen), die Tonie-Einstellungen und die Box-Einstellungen löschen? Inhalte werden beim Aufstellen einer Figur neu geladen.",
-    qserver: "ACHTUNG: Das löscht die Server-Adresse, den Port und die CA-Datei des Servers (ihr Name bleibt). Ohne sie erreicht die Box keinen Server mehr, bis sie hier neu eingetragen sind. Löschen?",
+    qserver: "ACHTUNG: Das löscht die Server-Adresse und den Port; die Zertifikate bleiben. Ohne sie erreicht die Box keinen Server mehr, bis sie hier neu eingetragen sind. Löschen?",
     done: "Gelöscht.", rnext: "Gelöscht; gilt ab dem nächsten Start.",
     title: "Toniebox einrichten", lang: "Sprache", langl: "Sprache der Box (Ansagen und diese Seite)", lsave: "Sprache speichern",
     wifi: "WLAN", net: "Netzwerk", rescan: "Neu suchen", ssid: "Netzwerkname (SSID)", key: "Passwort", join: "Verbinden",
@@ -149,7 +149,7 @@ const T = {
     portbad: "Der Port muss zwischen 1 und 65535 liegen.", long: "/cfw/config.txt wäre länger als 1024 Byte.",
     card: "Die SD-Karte konnte nicht beschrieben werden.", der: "Kein einzelnes DER-Element mit 2 bis 4096 Byte; nicht geschrieben.",
     flash: "Schreiben in den Flash ist fehlgeschlagen.", choose: "Netzwerk wählen ...", none: "Keine Netzwerke gefunden",
-    ssidlen: "Bitte einen Netzwerknamen mit 1 bis 32 Byte eingeben.", keylen: "Das Passwort darf höchstens 63 Byte lang sein.",
+    ssidlen: "Bitte einen Netzwerknamen mit 1 bis 32 Byte eingeben.", keylen: "Das Passwort darf höchstens 63 Byte lang sein oder aus 64 Hexadezimalziffern bestehen.",
     joining: "Die Box verbindet sich jetzt (blaues Blinken); dieser Zugangspunkt wird geschlossen.", lstored: "Sprache gespeichert; gilt ab sofort.",
     nothing: " Es wurde nichts gespeichert.", written: "in den Flash geschrieben", nextstart: ". Gilt ab dem nächsten Start.", nofile: "Bitte zuerst eine Datei wählen.",
     pver: "Setup-Seite", fw: "Firmware", needs: "diese Seite braucht mindestens",
@@ -160,7 +160,7 @@ const T = {
     reset: "Supprimer", rwifi: "Supprimer tous les réseaux Wi-Fi enregistrés", rcontent: "Supprimer tous les contenus locaux, les réglages des Tonies et de la box", rserver: "Supprimer les réglages du serveur",
     qwifi: "Supprimer tous les réseaux Wi-Fi enregistrés ? La box ne rejoindra ensuite qu'un réseau configuré à nouveau ici.",
     qcontent: "Supprimer tous les contenus audio de la carte (pas les annonces), les réglages des Tonies et de la box ? Les contenus sont téléchargés à nouveau lorsqu'une figurine est posée.",
-    qserver: "ATTENTION : cela supprime l'adresse du serveur, le port et le fichier CA du serveur (son nom reste). Sans eux, la box n'atteint plus aucun serveur jusqu'à ce qu'ils soient à nouveau saisis ici. Supprimer ?",
+    qserver: "ATTENTION : cela supprime l'adresse du serveur et le port ; les certificats restent. Sans eux, la box n'atteint plus aucun serveur jusqu'à ce qu'ils soient à nouveau saisis ici. Supprimer ?",
     done: "Supprimé.", rnext: "Supprimé ; actif au prochain démarrage.",
     title: "Configuration de la Toniebox", lang: "Langue", langl: "Langue de la box (annonces et cette page)", lsave: "Enregistrer la langue",
     wifi: "Wi-Fi", net: "Réseau", rescan: "Rechercher", ssid: "Nom du réseau (SSID)", key: "Mot de passe", join: "Connecter",
@@ -172,7 +172,7 @@ const T = {
     portbad: "Le port doit être compris entre 1 et 65535.", long: "/cfw/config.txt dépasserait 1024 octets.",
     card: "Impossible d'écrire sur la carte SD.", der: "Pas un élément DER unique de 2 à 4096 octets ; non écrit.",
     flash: "L'écriture dans la mémoire flash a échoué.", choose: "Choisir un réseau ...", none: "Aucun réseau trouvé",
-    ssidlen: "Saisir un nom de réseau de 1 à 32 octets.", keylen: "Le mot de passe peut comporter au plus 63 octets.",
+    ssidlen: "Saisir un nom de réseau de 1 à 32 octets.", keylen: "Le mot de passe peut comporter au plus 63 octets, ou 64 chiffres hexadécimaux.",
     joining: "La box se connecte (clignotement bleu) ; ce point d'accès se ferme.", lstored: "Langue enregistrée ; active dès maintenant.",
     nothing: " Rien n'a été enregistré.", written: "écrit dans la mémoire flash", nextstart: ". Utilisé au prochain démarrage.", nofile: "Choisir d'abord un fichier.",
     pver: "Page de configuration", fw: "firmware", needs: "cette page nécessite au moins",
@@ -232,10 +232,12 @@ $("join").onclick = () => {
   const n = nets.find(x => x.name === name);
   const ssid = n ? n.raw : new TextEncoder().encode(name);
   if (!ssid.length || ssid.length > 32) return show($("wmsg"), false, L.ssidlen);
-  if (key.length > 63) return show($("wmsg"), false, L.keylen);
-  const s = hex(ssid), k = hex(key);
+  // a 64-digit hexadecimal key goes as text: the hexadecimal fields carry at most 63 bytes
+  const raw = /^[0-9a-fA-F]{64}$/.test($("key").value) ? $("key").value : "";
+  if (key.length > 63 && !raw) return show($("wmsg"), false, L.keylen);
+  const s = hex(ssid), k = raw ? "" : hex(key);
   const mode = n ? n.sec : (key.length ? 3 : 0);
-  const f = "__SL_P_USL=&__SL_P_USN=&__SL_P_USR=" + s.slice(0, 63) + "&__SL_P_USS=" + s.slice(63) +
+  const f = "__SL_P_USL=&__SL_P_USN=" + raw + "&__SL_P_USR=" + s.slice(0, 63) + "&__SL_P_USS=" + s.slice(63) +
     "&__SL_P_USP=" + k.slice(0, 63) + "&__SL_P_USQ=" + k.slice(63) + "&__SL_P_USM=" + mode + "&__SL_P_UST=" + $("lang").value + "&__SL_P_USO=1";
   post("/wifi", f).then(r => show($("wmsg"), r === "ok",
     r === "ok" ? L.joining : tr(r)))

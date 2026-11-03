@@ -157,7 +157,7 @@ static void wait_generator_idle(void)
         }
         vTaskDelay(1);
     }
-    debug_printf("snd: beeper busy at next tone (6305)\n");
+    debug_printf("snd: beeper busy (6305)\n");
 }
 
 bool tones_play(unsigned f, unsigned d, unsigned a)

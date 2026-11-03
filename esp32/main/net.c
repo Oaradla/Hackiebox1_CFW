@@ -610,13 +610,18 @@ static void net_down(const char *why)
 
 static void startup(void)
 {
-    /* the clock starts at the build time at the latest, which
-     * the certificate checks also use. */
-    if (clock_now() < CFW_BUILD_TIME)
+    /* the clock starts at the system time kept over deep sleep, at the
+     * build time at the latest, which the certificate checks also use. */
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    if (tv.tv_sec < CFW_BUILD_TIME)
     {
-        clock_set(CFW_BUILD_TIME);
-        struct timeval tv = {.tv_sec = CFW_BUILD_TIME};
+        tv.tv_sec = CFW_BUILD_TIME;
         settimeofday(&tv, NULL);
+    }
+    if (clock_now() < (uint32_t)tv.tv_sec)
+    {
+        clock_set((uint32_t)tv.tv_sec);
     }
     esp_netif_init();
     esp_event_loop_create_default();

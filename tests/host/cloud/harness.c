@@ -948,11 +948,12 @@ static void ext_tests(const uint8_t *taf, long tz)
         ext_answer(m, k);
         card_file("CFW/EXT/473F0D0D/500304E0.TBS", buf, &n);
         CHECK(n == 23, "1 s older: kept");
+        CHECK(n_fn == 2 && fn_func[1] == 32258 && !memcmp(fn_args[1].data, fig, 8) && ext_le32(fn_args[1].data + 16) == 1790000000u, "and reported");
         n = mk_tbs(f, 1, 1790000000u, b2, 3);
         k = put100(m, fig, f, n);
         ext_answer(m, k);
         card_file("CFW/EXT/473F0D0D/500304E0.TBS", buf, &n);
-        CHECK(n == 23, "same time stamp: kept");
+        CHECK(n == 23 && n_fn == 2, "same time stamp: kept, not reported");
         n = mk_tbs(f, 1, 1790000001u, b2, 3);
         k = put100(m, fig, f, n);
         uint32_t g0 = ext_generation();
@@ -1231,6 +1232,23 @@ int main(int argc, char **argv)
     serve("HTTP/1.1 200 x\r\nContent-Length: 1\r\n\r\n\xff", 0);
     online_round(1);
     CHECK(first_result != CE_OK && boot_time_reports == 1, "2xx answer, session failed later: the start is confirmed");
+
+    printf("E8 the rest of a content only after the hello of an extension server\n");
+    for (int h = 0; h < 2; h++)
+    {
+        while (xQueueReceive(queue, &left, 0) == pdTRUE)
+        {
+        }
+        hello = h;
+        memcpy(cloud_dl.uid, uid, 8);
+        cloud_dl.pos = 16384;
+        cloud_dl.size = 0;
+        cloud_content(uid, token, 16384, 1);
+        job_t got;
+        xQueueReceive(queue, &got, 0);
+        CHECK(h ? got.offset == 16384 && cloud_dl.readable == 16384 : got.offset == 0 && cloud_dl.readable == 0,
+              "%s: %s", h ? "hello" : "no hello", h ? "from 16384" : "the whole content");
+    }
 
     unlink(q);
     full("cfw", q);
@@ -2083,7 +2101,7 @@ int main(int argc, char **argv)
         {
             const char *text, *why;
         } t[] = {
-            {"host=192.0.2.10\nport=8443\n", NULL}, {"# c\nfoo=1\n HOST = tc.example. \r\n", NULL}, {"", NULL}, {"foo=1\n", NULL}, {"host=prod.de.tbs.toys\n", "vendor"}, {"host=RTNL.BXCL.DE\n", "vendor"}, {"host=tbs.toys.\n", "vendor"}, {"host=notbs.toys\n", NULL}, {"host=a..b\n", "host"}, {"host=-a\n", "host"}, {"host=a_b\n", "host"}, {"host=\n", "host"}, {"host=x\nport=0\n", "port"}, {"host=x\nport=65536\n", "port"}, {"host=x\nport=\n", "port"}, {"host=x\nport=65535\n", NULL}, {"host=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n", NULL}, {"host=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n", "host"}, {"host=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n", "host"}, {"host=bad name\nhost=10.0.0.5\n", NULL}};
+            {"host=192.0.2.10\nport=8443\n", NULL}, {"# c\nfoo=1\n HOST = tc.example. \r\n", NULL}, {"", NULL}, {"foo=1\n", NULL}, {"host=prod.de.tbs.toys\n", "vendor"}, {"host=RTNL.BXCL.DE\n", "vendor"}, {"host=tbs.toys.\n", "vendor"}, {"host=notbs.toys\n", NULL}, {"host=a..b\n", "host"}, {"host=-a\n", "host"}, {"host=a_b\n", "host"}, {"host=\n", "host"}, {"host=x\nport=0\n", "port"}, {"host=x\nport=65536\n", "port"}, {"host=x\nport=\n", "port"}, {"host=x\nport=65535\n", NULL}, {"host=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n", NULL}, {"host=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n", "host"}, {"host=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n", "host"}, {"host=bad name\nhost=10.0.0.5\n", NULL}, {"\xEF\xBB\xBFhost=prod.de.tbs.toys\n", "vendor"}};
         for (unsigned i = 0; i < sizeof t / sizeof t[0]; i++)
         {
             char b[200];

@@ -309,7 +309,7 @@ static void both_ears_check(void)
         stage = STAGE_10S;
         /* direct read. */
         debug_printf("in: both 10 s up: %s\n",
-                     board_on_station() ? "factory reset (421), restart" : "restart (422)");
+                     board_on_station() ? "restart (421)" : "restart (422)");
         restart_action();
     }
 }

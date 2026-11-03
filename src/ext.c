@@ -386,6 +386,21 @@ void ext_pack_report(const ext_settings_t *s, uint32_t *packed, uint32_t *values
     *idle = i;
 }
 
+/* the settings report of a file the box holds */
+static void report(const uint8_t uid[8], const ext_settings_t *s)
+{
+    uint32_t packed, values, idle;
+    ext_pack_report(s, &packed, &values, &idle);
+    log_args_t a = {0};
+    log_arg_num(&a, s->kind == EXT_PROFILE ? (int32_t)ext_le32(uid) : 0);
+    log_arg_num(&a, s->kind == EXT_PROFILE ? (int32_t)ext_le32(uid + 4) : 0);
+    log_arg_num(&a, (int32_t)packed);
+    log_arg_num(&a, (int32_t)values);
+    log_arg_num(&a, (int32_t)s->stamp);
+    log_arg_num(&a, (int32_t)idle);
+    log_fn(LOG_INFO, 22, 32258, 0, &a);
+}
+
 bool ext_write(const uint8_t uid[8], ext_settings_t *s)
 {
     static const uint8_t zero[8];
@@ -402,17 +417,7 @@ bool ext_write(const uint8_t uid[8], ext_settings_t *s)
     debug_printf("ext: %s written, %u B%s\n", path, n, ok ? "" : " FAILED");
     if (ok && hello)
     {
-        /* the settings report, only after the hello of this start */
-        uint32_t packed, values, idle;
-        ext_pack_report(s, &packed, &values, &idle);
-        log_args_t a = {0};
-        log_arg_num(&a, kind == EXT_PROFILE ? (int32_t)ext_le32(uid) : 0);
-        log_arg_num(&a, kind == EXT_PROFILE ? (int32_t)ext_le32(uid + 4) : 0);
-        log_arg_num(&a, (int32_t)packed);
-        log_arg_num(&a, (int32_t)values);
-        log_arg_num(&a, (int32_t)s->stamp);
-        log_arg_num(&a, (int32_t)idle);
-        log_fn(LOG_INFO, 22, 32258, 0, &a);
+        report(uid, s); /* only after the hello of this start */
     }
     return ok;
 }
@@ -460,12 +465,20 @@ static bool store_field(const uint8_t *d, unsigned len)
     ext_path(d, path);
     xSemaphoreTake(lock, portMAX_DELAY);
     /* the newer one wins; an equal time stamp is the same file */
-    bool newer = !tbs_load(path, held) || ext_le32(f + 8) > ext_le32(held + 8);
+    bool have = tbs_load(path, held);
+    bool newer = !have || ext_le32(f + 8) > ext_le32(held + 8);
     bool ok = newer && tbs_store(path, f, n);
     xSemaphoreGive(lock);
     if (newer)
     {
         debug_printf("ext: %s stored, %u B%s\n", path, n, ok ? "" : " FAILED");
+    }
+    else if (hello && ext_le32(held + 8) > ext_le32(f + 8))
+    {
+        /* changed here while the server did not hear it, e.g. before the hello */
+        ext_settings_t s;
+        ext_parse_settings(held, &s);
+        report(d, &s);
     }
     return ok;
 }
