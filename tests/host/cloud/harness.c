@@ -735,6 +735,13 @@ static void ext_tests(const uint8_t *taf, long tz)
     CHECK(st.kind == 1 && ext_has(&st, EXT_RESUME) && st.value[EXT_RESUME] == 1 && st.value[EXT_SLEEP] == 30 && st.present == (1 << 1 | 1 << 3) && st.stamp == 1790000000u, "profile: resume 1, sleep 30");
     ext_parse_settings(ex_global, &st);
     CHECK(st.kind == 3 && st.present == 1 << 6 && st.value[EXT_LED] == 2, "global: LED 2");
+    {
+        uint8_t f[40];
+        static const uint8_t leds[] = {0x06, 0x01, 0x05, 0x06, 0x01, 0x03, 0x06, 0x01, 0x04};
+        (void)mk_tbs(f, 3, 5, leds, sizeof leds);
+        ext_parse_settings(f, &st);
+        CHECK(st.value[EXT_LED] == 5, "LED 3 and 4 skipped");
+    }
     printf("X2 TBS checks\n");
     {
         uint8_t f[300], b[260] = {0};

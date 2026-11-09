@@ -943,7 +943,7 @@ static void wlan_setting(uint16_t group, uint16_t opt, const void *val, uint16_t
     if (r < 0)
     {
         /* options 2 and 5 of the AP group: numbers inferred */
-        debug_printf("net: AP cfg %u/%u\n", group, opt);
+        debug_verbose("net: AP cfg %u/%u\n", group, opt);
         fatal("AP cfg", r);
     }
 }
@@ -1164,7 +1164,7 @@ static void join(uint8_t language)
     long r = sl_WlanConnect((const int8_t *)ssid, ssid_len, NULL, &sec, NULL);
     if (r < 0)
     {
-        debug_printf("net: sl_WlanConnect %ld\n", r);
+        debug_verbose("net: sl_WlanConnect %ld\n", r);
     }
     uint32_t t0 = tick_ms();
     while (!(join_conn && join_addr) && tick_ms() - t0 < 10000)
@@ -1272,7 +1272,7 @@ static void store_profile(void)
         log_arg_num(&a, p.del_after);
         log_fn(LOG_INFO, 24, 7178, 0, &a);
     }
-    debug_printf("net: profile slot %ld, del %d\n", slot, p.del_after);
+    debug_verbose("net: profile slot %ld, del %d\n", slot, p.del_after);
 }
 
 static void cloud_result(uint32_t s, int error)
@@ -1284,7 +1284,7 @@ static void cloud_result(uint32_t s, int error)
     profile_pending = false;
     if (state <= 3)
     {
-        debug_printf("net: profile drop, state %u\n", state);
+        debug_verbose("net: profile drop, state %u\n", state);
         return;
     }
     switch (error)
@@ -1311,7 +1311,7 @@ static void cloud_result(uint32_t s, int error)
         }
         break;
     default:
-        debug_printf("net: profile drop %d\n", error);
+        debug_verbose("net: profile drop %d\n", error);
         break;
     }
 }
@@ -1412,7 +1412,7 @@ static void handle(const event_t *e)
         }
         else
         {
-            debug_printf("net: submit off, mode %u\n", mode);
+            debug_verbose("net: submit off, mode %u\n", mode);
         }
         break;
     case EV_CLOUD_RESULT:

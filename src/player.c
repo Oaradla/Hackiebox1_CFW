@@ -465,7 +465,7 @@ static void emit(const int16_t *s, unsigned frames)
             out = audio_out_buffer();
             if (!out)
             {
-                debug_printf("pl: output takes none\n");
+                debug_verbose("pl: output takes none\n");
                 audio_out_report();
                 STOP("output");
                 return;
@@ -833,7 +833,7 @@ static bool jump_to(uint32_t offset, const char *what)
                      (unsigned long)cloud_dl.readable);
         return false;
     }
-    debug_printf("pl: jump %lu -> %lu\n", (unsigned long)read_pos, (unsigned long)offset);
+    debug_verbose("pl: jump %lu -> %lu\n", (unsigned long)read_pos, (unsigned long)offset);
     debug_verbose("pl: (%s)\n", what);
     read_pos = offset;
     jump_start = 0; /* J is used only once */
@@ -1764,7 +1764,7 @@ static void range_not_satisfiable(const uint8_t uid[8])
     if (f_stat(path, &fi) == FR_OK)
     {
         /* not moved: a new request would get the 416 again */
-        debug_printf("pl: %s not moved\n", path);
+        debug_verbose("pl: %s not moved\n", path);
         error_indication(-1);
         return;
     }

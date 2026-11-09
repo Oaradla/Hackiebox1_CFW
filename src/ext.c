@@ -130,7 +130,7 @@ static const struct
     [EXT_SLEEP] = {2, 1u << EXT_PROFILE, 65535},
     [EXT_SPEAKER_LIMIT] = {1, 1u << EXT_PROFILE | 1u << EXT_GLOBAL, 15},
     [EXT_HEADPHONE_LIMIT] = {1, 1u << EXT_PROFILE | 1u << EXT_GLOBAL, 15},
-    [EXT_LED] = {1, 1u << EXT_PROFILE | 1u << EXT_GLOBAL, 2},
+    [EXT_LED] = {1, 1u << EXT_PROFILE | 1u << EXT_GLOBAL, 6},
     [EXT_BOTH_EARS] = {1, 1u << EXT_GLOBAL, 1},
     [EXT_SLAP_LOCK] = {1, 1u << EXT_PROFILE | 1u << EXT_GLOBAL, 1},
     [EXT_TILT_LOCK] = {1, 1u << EXT_PROFILE | 1u << EXT_GLOBAL, 1},
@@ -178,7 +178,7 @@ void ext_parse_settings(const uint8_t *f, ext_settings_t *s)
             continue;
         }
         uint16_t v = r[1] == 2 ? (uint16_t)(r[2] | r[3] << 8) : r[2];
-        if (v > keys[k].max || (v == 0 && k >= EXT_IDLE_BATTERY))
+        if (v > keys[k].max || (v == 0 && k >= EXT_IDLE_BATTERY) || (k == EXT_LED && (v == 3 || v == 4)))
         {
             continue;
         }
@@ -208,6 +208,10 @@ void ext_parse_event(const uint8_t *f, ext_event_t *e)
         {
             e->tones = r[2];
         }
+        else if (r[0] == 0x12 && r[1] == 1 && r[2] <= 1)
+        {
+            e->temporary = r[2];
+        }
     }
 }
 
@@ -216,7 +220,7 @@ ext_scope_t ext_event_scope(const ext_event_t *e)
     for (unsigned i = 0; i < e->n; i++)
     {
         uint8_t a = e->a[i].action;
-        if (a == 8 || a == 9 || (a >= 13 && a <= 18))
+        if (a == 8 || a == 9 || (a >= 13 && a <= 19))
         {
             return EXT_SCOPE_GLOBAL;
         }
@@ -346,7 +350,7 @@ void ext_pack_report(const ext_settings_t *s, uint32_t *packed, uint32_t *values
     }
     if (ext_has(s, EXT_LED))
     {
-        p |= (uint32_t)(s->value[EXT_LED] & 3) << 14;
+        p |= (uint32_t)(s->value[EXT_LED] & 3) << 14 | (uint32_t)(s->value[EXT_LED] >> 2 & 1) << 19;
     }
     if (ext_has(s, EXT_BOTH_EARS))
     {

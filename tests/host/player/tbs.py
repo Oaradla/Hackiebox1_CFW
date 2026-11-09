@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Settings and state files of the teddyCloud extension for the player harness.
 # usage: tbs.py <card> profile <uid hex B0..B7> key=value ...
-#        tbs.py <card> global key=value ...
-#        tbs.py <card> event <uid hex> action:mode:value ... [tones=0]
+#        tbs.py <card> global key=value ... [stamp=N]
+#        tbs.py <card> event <uid hex> action:mode:value ... [tones=0] [temp=1]
 #        tbs.py <card> show <uid hex | global>
 #        tbs.py <card> state <uid hex> audio_id position seed index chapters flags
 #        tbs.py <card> showstate
@@ -30,8 +30,8 @@ def path(card, uid):
     return os.path.join(card, 'CFW', 'EXT', uid[:8].upper(), uid[8:].upper() + '.TBS')
 
 
-def write(p, kind, body):
-    f = b'TBS1' + bytes([kind, 1]) + struct.pack('<HI', len(body), 0) + body
+def write(p, kind, body, stamp=0):
+    f = b'TBS1' + bytes([kind, 1]) + struct.pack('<HI', len(body), stamp) + body
     f += struct.pack('<I', crc(f))
     os.makedirs(os.path.dirname(p), exist_ok=True)
     open(p, 'wb').write(f)
@@ -66,12 +66,16 @@ card, cmd = sys.argv[1], sys.argv[2]
 if cmd == 'profile':
     write(path(card, sys.argv[3]), 1, records(sys.argv[4:]))
 elif cmd == 'global':
-    write(path(card, 'global'), 3, records(sys.argv[3:]))
+    stamp = [int(a[6:]) for a in sys.argv[3:] if a.startswith('stamp=')]
+    write(path(card, 'global'), 3, records([a for a in sys.argv[3:] if not a.startswith('stamp=')]), stamp[0] if stamp else 0)
 elif cmd == 'event':
     body = b''
     for a in sys.argv[4:]:
         if a.startswith('tones='):
             body += bytes([0x11, 1, int(a[6:])])
+            continue
+        if a.startswith('temp='):
+            body += bytes([0x12, 1, int(a[5:])])
             continue
         act, mode, val = (int(x) for x in a.split(':'))
         body += bytes([0x10, 3, act]) + struct.pack('<H', val | mode << 14)

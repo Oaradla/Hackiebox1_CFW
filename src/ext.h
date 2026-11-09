@@ -29,12 +29,14 @@
 #define EXT_CAP_F12_REMOTE (1u << 10)
 #define EXT_CAP_F13_BATTERY (1u << 11)
 #define EXT_CAP_F14_IDLE_TIMES (1u << 12)
-/* 0x1FFF. F9 has no bit. F12 has no bit dependency; its
+#define EXT_CAP_F15_TEMPORARY (1u << 13)
+/* 0x3FFF. F9 has no bit. F12 has no bit dependency; its
  * commands 64 and 73 use ext_store() and cloud_remote_update_check()
  * (remote.c). */
 #define EXT_CAPS (EXT_CAP_F1_RESUME | EXT_CAP_F2_SHUFFLE | EXT_CAP_F3_SLEEP | EXT_CAP_F4_EVENT_TAGS | EXT_CAP_F5_RESTART | \
                   EXT_CAP_F6_PER_FIGURE | EXT_CAP_F8_FOREIGN | EXT_CAP_F7_GLOBAL | EXT_CAP_F10_LOCKS |                     \
-                  EXT_CAP_F11_EVENT_EXT | EXT_CAP_F12_REMOTE | EXT_CAP_F13_BATTERY | EXT_CAP_F14_IDLE_TIMES)
+                  EXT_CAP_F11_EVENT_EXT | EXT_CAP_F12_REMOTE | EXT_CAP_F13_BATTERY | EXT_CAP_F14_IDLE_TIMES |              \
+                  EXT_CAP_F15_TEMPORARY)
 
 /* --- protocol (called by the cloud activity) --- */
 
@@ -92,7 +94,7 @@ typedef enum
     EXT_SLEEP = 0x03,         /* minutes, 0 off */
     EXT_SPEAKER_LIMIT = 0x04, /* step 0..15 */
     EXT_HEADPHONE_LIMIT = 0x05,
-    EXT_LED = 0x06,       /* 0 on, 1 off, 2 dimmed */
+    EXT_LED = 0x06,       /* 0 on, 1 off, 2 dimmed, 5/6 off/dimmed permanently */
     EXT_BOTH_EARS = 0x07, /* global only; absent = on */
     EXT_SLAP_LOCK = 0x08,
     EXT_TILT_LOCK = 0x09,
@@ -129,7 +131,7 @@ static inline void ext_clear(ext_settings_t *s, ext_key_t k)
 }
 
 /* An event tag file: the first 16 action records in their
- * order (any action number; the player gives 0 and 19 to 255 no effect). */
+ * order (any action number; the player gives 0 and 20 to 255 no effect). */
 typedef enum
 {
     EXT_TOGGLE = 0,
@@ -147,7 +149,8 @@ typedef enum
 typedef struct
 {
     uint8_t n;
-    bool tones; /* record 0x11, absent = on */
+    bool tones;     /* record 0x11, absent = on */
+    bool temporary; /* record 0x12: global values only until switch-off */
     struct
     {
         uint8_t action;
@@ -157,7 +160,7 @@ typedef struct
     uint32_t stamp;
 } ext_event_t;
 
-/* The scope of an event tag: that of its first action 1 to 18. */
+/* The scope of an event tag: that of its first action 1 to 19. */
 ext_scope_t ext_event_scope(const ext_event_t *e);
 
 /* The tag's profile / event tag file, the global file; false when absent

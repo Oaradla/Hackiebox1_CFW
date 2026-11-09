@@ -67,6 +67,22 @@ echo "== EXT F14 global tag: idle power-off 1440 min on the station, then back t
 xcard; python3 $T/player/tbs.py $X global idlebat=30
 python3 $T/player/tbs.py $X event $E 18:0:1440 17:0:0
 pt $X "0S,0Q,1000R" | grep "written\|feedback"; python3 $T/player/tbs.py $X show global
+echo "== EXT F15 global tag until switch-off: slap and volume lock; a lasting volume unlock ends only its temporary value"
+xcard; python3 $T/player/tbs.py $X event $E 13:1:0 15:1:0 temp=1; python3 $T/player/tbs.py $X event C1C2C3C4500304E0 15:2:0
+pt $X "0S,0Q,0i,1000R,0K,0i,1000R,0i,0O,0i" > $B/f15.log; grep "written\|feedback\|status" $B/f15.log; python3 $T/player/tbs.py $X show global
+[ "$(grep -c "GLOBAL.TBS written" $B/f15.log)" = 1 ] && [ "$(grep status $B/f15.log | awk '{print $NF}' | tr '\n' ' ')" = "5 1 1 1 " ] || { echo "FAIL: F15 temporary locks"; touch $B/player.failed; }
+echo "== EXT F15 global files from the server: an unchanged lock keeps its temporary value, a changed one loses it"
+xcard; python3 $T/player/tbs.py $X event $E 13:1:0 15:1:0 temp=1
+rm -rf $B/g100 && python3 $T/player/tbs.py $B/g100 global led=1 stamp=1 && cp $B/g100/CFW/EXT/GLOBAL.TBS $B/g100a.tbs
+python3 $T/player/tbs.py $B/g100 global led=1 vol=0 stamp=2 && cp $B/g100/CFW/EXT/GLOBAL.TBS $B/g100b.tbs
+GLOBAL100=$B/g100a.tbs GLOBAL100B=$B/g100b.tbs pt $X "0S,0Q,1000R,0Y,0i,0y,0i" > $B/f15s.log; grep "server\|status" $B/f15s.log
+[ "$(grep status $B/f15s.log | awk '{print $NF}' | tr '\n' ' ')" = "5 1 " ] || { echo "FAIL: F15 temporary values and stored global files"; touch $B/player.failed; }
+echo "== EXT F15 global tag with a one-time sleep timer of 1 min for the next figure; profile unchanged; 70 s later: none"
+xcard; python3 $T/player/tbs.py $X event $E 19:0:1
+IDLETIME=1 pt $X "0S,0Q,1000R,0P,70000R" > $B/f15t.log; grep "written\|feedback\|sleep\|power-off" $B/f15t.log; python3 $T/player/tbs.py $X show $F
+grep -q "sleep timer 1 min (once)" $B/f15t.log && ! grep -q "written" $B/f15t.log || { echo "FAIL: F15 one-time timer"; touch $B/player.failed; }
+IDLETIME=1 pt $X "0S,0Q,1000R,71000P,80000R" > $B/f15u.log
+! grep -q "sleep timer" $B/f15u.log || { echo "FAIL: F15 one-time timer after 70 s"; touch $B/player.failed; }
 echo "== EXT F4 values set with the ears for the next figure (5, 6), F5 restart gesture"
 xcard; python3 $T/player/tbs.py $X event $E 5:0:12 6:0:2
 pt $X "0S,0Q,0U,0U,0H,0L,0R,0P,2000T,5000R" | grep "$KEY"; python3 $T/player/tbs.py $X show $F

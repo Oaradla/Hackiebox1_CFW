@@ -12,6 +12,7 @@
 #include "simplelink.h"
 #include "audio_out.h"
 #include "cloud.h"
+#include "ext.h"
 #include "player.h"
 #include "rtnl.h"
 #include "sound.h"
@@ -599,6 +600,20 @@ static void act(char w)
         printf("--- both ears, short (F9)\n");
         player_switch_off();
         break;
+    case 'Y':
+    case 'y':
+    {
+        /* a global file from the server (field 100): $GLOBAL100 or $GLOBAL100B */
+        uint8_t f[8 + 256] = {0};
+        FILE *g = fopen(getenv(w == 'Y' ? "GLOBAL100" : "GLOBAL100B"), "rb");
+        size_t n = g ? fread(f + 8, 1, 256, g) : 0;
+        if (g)
+        {
+            fclose(g);
+        }
+        printf("--- global file from the server: %d\n", ext_store(f, 8 + (unsigned)n));
+        break;
+    }
     case 'G':
     {
         uint8_t k[2] = {(uint8_t)snd_step[1], (uint8_t)snd_step[2]};

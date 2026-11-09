@@ -114,7 +114,10 @@ blinks turquoise once. Then:
   for the next Tonie or for the whole box. If a tag sets both, holding one
   ear for 3 seconds switches between volume and LED.
 - **For the whole box:** switch the box's locks and the switch-off with both
-  ears at once.
+  ears at once, set the switch-off times, or set a sleep timer for the next
+  Tonie only. A tag marked "only until switch-off" changes these settings
+  until the box switches off and stores nothing; a lasting change of the
+  same setting ends its temporary value.
 
 The box confirms with five blinks and a short tone pair per action:
 turquoise and a rising tone for "on", lilac and a falling tone for "off",

@@ -1066,7 +1066,7 @@ static bool time_request(uint32_t s)
     close_conn(&c);
     if (got < c.length)
     {
-        debug_printf("cloud: time body %s\n", cloud_error_name(e));
+        debug_verbose("cloud: time body %s\n", cloud_error_name(e));
         return false;
     }
     const char *p = body;
@@ -1088,7 +1088,7 @@ static bool time_request(uint32_t s)
      * the time base moves only after the network processor took the date. */
     if (!clock_valid(t))
     {
-        debug_printf("cloud: time %lu <= uptime\n", (unsigned long)t);
+        debug_verbose("cloud: time %lu <= uptime\n", (unsigned long)t);
         return false;
     }
     civil_t cv;
@@ -1096,7 +1096,7 @@ static bool time_request(uint32_t s)
     long r = sock_set_date(&cv);
     if (r < 0)
     {
-        debug_printf("cloud: date set %ld\n", r);
+        debug_verbose("cloud: date set %ld\n", r);
         return false;
     }
     if (!clock_set(t))
@@ -2225,7 +2225,7 @@ static void fresh_apply(const fresh_t *r)
         {
             if (f == 3 || f == 7)
             {
-                debug_printf("cloud: volume limit %d off\n", v);
+                debug_verbose("cloud: volume limit %d off\n", v);
             }
             continue;
         }
@@ -2313,7 +2313,7 @@ static cloud_error_t prompt_download(unsigned nn, uint32_t session)
     {
         f_unlink(tmp);
     }
-    debug_printf("cloud: prompt %02x downloaded\n", nn);
+    debug_verbose("cloud: prompt %02x downloaded\n", nn);
     return CE_OK;
 }
 
@@ -2628,7 +2628,7 @@ void cloud_online_round(uint32_t s)
     job_t j = {.kind = JOB_ONLINE, .session = s};
     if (!queue)
     {
-        debug_printf("cloud: round %lu dropped\n", (unsigned long)s);
+        debug_verbose("cloud: round %lu dropped\n", (unsigned long)s);
         return;
     }
     xQueueSend(queue, &j, 0);
@@ -2796,12 +2796,12 @@ static void cert_input(void)
         int r = ok ? cloud_cert_put(i, size) : -1;
         if (r < 0)
         {
-            debug_printf("cloud: %s no DER, kept\n", card);
+            debug_verbose("cloud: %s no DER, kept\n", card);
         }
         if (!r)
         {
             f_unlink(card);
-            debug_printf("cloud: %s as in flash, deleted\n", card);
+            debug_verbose("cloud: %s as in flash, deleted\n", card);
         }
     }
 }

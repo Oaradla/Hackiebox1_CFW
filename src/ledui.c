@@ -25,6 +25,12 @@ static const rgb_t OFF = {0, 0, 0}, GREEN = {0, 255, 0}, BLUE = {0, 0, 255}, RED
                    TURQUOISE = {0, 255, 255}, LILAC = {144, 0, 255}, TURQUOISE_DIM = {0, 25, 25};
 
 static rgb_t shown;
+static bool soft; /* the current pattern is shown dimmed */
+
+static rgb_t dimmed(rgb_t c)
+{
+    return (rgb_t){(uint8_t)(c.r * 26 / 256), (uint8_t)(c.g * 26 / 256), (uint8_t)(c.b * 26 / 256)};
+}
 
 /* channel value to PWM level, linear between the breakpoints
  * every 32 values (the last interval ends at 255), 255 passed through. */
@@ -43,6 +49,10 @@ static uint8_t level(uint8_t v)
 static void show(rgb_t c)
 {
     shown = c;
+    if (soft)
+    {
+        c = dimmed(c);
+    }
     if (c.r == c.g && c.g == c.b && c.r >= 112)
     {
         c.r = c.g = c.b = 112;
@@ -95,21 +105,27 @@ void ledui_ext_level(int level)
     ledui_request(LED_COLOUR_CHANGE);
 }
 
-/* target colour by the brightness setting, or the extension's
- * level. */
+/* the extension's level, else the brightness setting: 0 on, 1 off,
+ * 2 dimmed, 5 off and 6 dimmed permanently */
+static int led_level(void)
+{
+    return ext_level >= 0 ? ext_level : settings.led;
+}
+
+/* no bright phase, no brightening, every pattern dimmed */
+static bool permanent(void)
+{
+    return led_level() & 4;
+}
+
 static rgb_t ready_target(void)
 {
-    rgb_t c = ready_colour();
-    int led = ext_level >= 0 ? ext_level : settings.led;
+    int led = led_level() & 3;
     if (led == 1)
     {
         return OFF;
     }
-    if (led == 2)
-    {
-        return (rgb_t){(uint8_t)(c.r * 26 / 256), (uint8_t)(c.g * 26 / 256), (uint8_t)(c.b * 26 / 256)};
-    }
-    return c;
+    return led == 2 ? dimmed(ready_colour()) : ready_colour();
 }
 
 /* --- fade --- */
@@ -237,7 +253,12 @@ static bool is_ext(led_request_t r)
 static void ready_begin(void)
 {
     pat.k = K_READY;
-    if (bright_next || phase == PH_BRIGHT || phase == PH_BRIGHTEN)
+    if (permanent())
+    {
+        phase = PH_RESTING;
+        show(ready_target());
+    }
+    else if (bright_next || phase == PH_BRIGHT || phase == PH_BRIGHTEN)
     {
         bright_next = false;
         phase = PH_BRIGHT;
@@ -269,6 +290,12 @@ static void blink_begin(rgb_t c, int count, uint32_t fade_after)
 
 static void begin(led_request_t r)
 {
+    if (permanent() && (r == LED_FIRMWARE_DOWNLOAD || r == LED_CONTENT_DOWNLOAD))
+    {
+        r = LED_READY_IDLE; /* no download display */
+    }
+    bool level_display = r >= LED_EXT_LEVEL_ON && r <= LED_EXT_LEVEL_OFF; /* shows the chosen level as it looks */
+    soft = permanent() && r != LED_READY_IDLE && r != LED_READY_PLAYING && !level_display;
     switch (r)
     {
     case LED_OFF:
@@ -349,7 +376,7 @@ static void apply(led_request_t r)
 {
     if (r == LED_ACTIVITY)
     {
-        if (oneshot || (current != LED_READY_IDLE && current != LED_READY_PLAYING) || pat.k != K_READY)
+        if (permanent() || oneshot || (current != LED_READY_IDLE && current != LED_READY_PLAYING) || pat.k != K_READY)
         {
             return;
         }

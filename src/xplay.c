@@ -27,7 +27,9 @@
 
 /* --- state --- */
 
-static ext_settings_t glob; /* empty when absent */
+static ext_settings_t stored; /* the global file, empty when absent */
+static ext_settings_t glob;   /* in effect: stored, but the keys in temp_keys */
+static uint16_t temp_keys;    /* until switch-off: every start begins without */
 static uint32_t glob_generation;
 
 static bool fig_on; /* a figure (not an event tag) stands */
@@ -42,7 +44,7 @@ static struct
     ext_event_t e;
     ext_scope_t scope;
     int vol, led;   /* index of the volume / LED action using the ears, -1 */
-    uint8_t chosen; /* LED level chosen (0 on, 1 off, 2 dimmed) */
+    uint8_t chosen; /* LED level chosen (0 on, 1 off, 2 dimmed, 5/6 off/dimmed permanently) */
     bool led_phase; /* combined tag: the ears set the LED level */
 } ev;
 
@@ -54,6 +56,7 @@ static struct
     uint32_t removed_ms;
     bool removed;
     uint8_t vol_path, vol_step, led;
+    uint16_t global_once; /* a global tag's one-time timer, minutes */
 } kept;
 
 /* Read by the input activity (player.h). */
@@ -164,13 +167,56 @@ static int led_in_effect(void)
     return l >= 0 ? l : settings.led;
 }
 
+/* Copies the keys in mask from src to dst. */
+static void copy_keys(ext_settings_t *dst, const ext_settings_t *src, uint16_t mask)
+{
+    dst->present = (uint16_t)((dst->present & ~mask) | (src->present & mask));
+    for (unsigned k = 0; k < 13; k++)
+    {
+        if (mask & (1u << k))
+        {
+            dst->value[k] = src->value[k];
+        }
+    }
+}
+
+/* a key whose record changed in the global file loses its temporary value */
 static void load_global(void)
 {
+    ext_settings_t f;
     glob_generation = ext_generation();
-    if (!ext_global(&glob))
+    if (!ext_global(&f))
     {
-        memset(&glob, 0, sizeof glob);
+        memset(&f, 0, sizeof f);
     }
+    uint16_t changed = (uint16_t)(f.present ^ stored.present);
+    for (unsigned k = 0; k < 13; k++)
+    {
+        if (f.value[k] != stored.value[k])
+        {
+            changed |= (uint16_t)(1u << k);
+        }
+    }
+    temp_keys &= (uint16_t)~changed;
+    stored = f;
+    copy_keys(&f, &glob, temp_keys);
+    glob = f;
+}
+
+/* w (glob changed in the keys in mask) in effect, until switch-off or
+ * written to the global file; a written key loses its temporary value. */
+static void store_global(const ext_settings_t *w, uint16_t mask, bool temporary)
+{
+    glob = *w;
+    if (temporary)
+    {
+        temp_keys |= mask;
+        return;
+    }
+    temp_keys &= (uint16_t)~mask;
+    copy_keys(&stored, w, mask);
+    ext_write(NULL, &stored);
+    glob_generation = ext_generation();
 }
 
 void xp_start(void)
@@ -396,7 +442,7 @@ static bool in_scope(uint8_t a, ext_scope_t sc)
     {
         return a >= 1 && a <= 12 && a != 8 && a != 9;
     }
-    return a == 8 || a == 9 || (a >= 13 && a <= 18);
+    return a == 8 || a == 9 || (a >= 13 && a <= 19);
 }
 
 /* The record set to 1 (true) or removed by mode: toggle by the value t
@@ -423,28 +469,33 @@ static bool set_lock(ext_settings_t *s, ext_key_t k, uint8_t mode, bool in_effec
     return on;
 }
 
-/* actions 13 to 18 at the placement. */
+/* actions 13 to 19 at the placement. */
 static void global_actions(void)
 {
-    ext_settings_t g;
-    if (!ext_global(&g))
+    if (ext_generation() != glob_generation)
     {
-        memset(&g, 0, sizeof g);
+        load_global();
     }
-    uint16_t results = 0;
+    ext_settings_t g = glob;
+    uint16_t results = 0, keys = 0;
     unsigned n = 0;
     for (unsigned i = 0; i < ev.e.n; i++)
     {
         uint8_t a = ev.e.a[i].action, mode = ev.e.a[i].mode;
-        if (a < 13 || a > 18)
+        if (a < 13 || a > 19)
         {
             continue;
         }
         bool on;
-        if (a >= 17)
+        if (a == 19)
+        {
+            on = ev.e.a[i].value != 0; /* starts with the next figure */
+        }
+        else if (a >= 17)
         {
             ext_key_t k = a == 17 ? EXT_IDLE_BATTERY : EXT_IDLE_STATION;
             uint16_t minutes = ev.e.a[i].value;
+            keys |= (uint16_t)(1u << k);
             on = minutes != 0;
             if (on)
             {
@@ -458,6 +509,7 @@ static void global_actions(void)
         else if (a == 16)
         {
             bool cur = !ext_has(&g, EXT_BOTH_EARS) || g.value[EXT_BOTH_EARS];
+            keys |= 1u << EXT_BOTH_EARS;
             on = set_lock(&g, EXT_BOTH_EARS, mode, cur);
         }
         else
@@ -465,6 +517,7 @@ static void global_actions(void)
             ext_key_t k = (ext_key_t)(EXT_SLAP_LOCK + (a - 13));
             /* the box's lock in effect without a figure */
             bool cur = ext_has(&g, k) && g.value[k];
+            keys |= (uint16_t)(1u << k);
             on = set_lock(&g, k, mode, cur);
         }
         if (on)
@@ -477,9 +530,10 @@ static void global_actions(void)
     {
         return;
     }
-    ext_write(NULL, &g);
-    glob = g;
-    glob_generation = ext_generation();
+    if (keys)
+    {
+        store_global(&g, keys, ev.e.temporary);
+    }
     apply();
     /* the level display wins on the LED */
     confirm(results, n, ev.e.tones, !(ev.led >= 0 && ev.vol < 0));
@@ -488,7 +542,8 @@ static void global_actions(void)
 static void level_display(void)
 {
     static const led_request_t r[3] = {LED_EXT_LEVEL_ON, LED_EXT_LEVEL_OFF, LED_EXT_LEVEL_DIMMED};
-    ledui_request(r[ev.chosen <= 2 ? ev.chosen : 0]);
+    unsigned l = ev.chosen & 3u;
+    ledui_request(r[l <= 2 ? l : 0]);
 }
 
 static bool place_event(const uint8_t uid[8])
@@ -536,14 +591,14 @@ static bool place_event(const uint8_t uid[8])
     if (ev.led >= 0)
     {
         unsigned v = e.a[ev.led].value;
-        ev.chosen = (uint8_t)(v <= 2 ? (int)v : led_in_effect());
+        ev.chosen = (uint8_t)(v <= 2 || v == 5 || v == 6 ? (int)v : led_in_effect());
     }
     bool globals = false;
     if (ev.scope == EXT_SCOPE_GLOBAL)
     {
         for (unsigned i = 0; i < e.n; i++)
         {
-            globals |= e.a[i].action >= 13 && e.a[i].action <= 18;
+            globals |= e.a[i].action >= 13 && e.a[i].action <= 19;
         }
     }
     apply();
@@ -585,16 +640,28 @@ static void remove_event(void)
         kept.vol_path = (uint8_t)path;
         kept.vol_step = step;
         kept.led = ev.chosen;
+        kept.global_once = 0;
     }
     else if (ev.scope == EXT_SCOPE_GLOBAL)
     {
-        /* the first action 9 and the first action 8, clear included */
-        ext_settings_t g;
-        if (!ext_global(&g))
+        for (unsigned i = 0; i < ev.e.n; i++)
         {
-            memset(&g, 0, sizeof g);
+            if (ev.e.a[i].action == 19)
+            {
+                kept.on = kept.removed = true;
+                kept.removed_ms = tick_ms();
+                kept.e.n = 0;
+                kept.global_once = ev.e.a[i].value;
+                break;
+            }
         }
-        uint16_t results = 0;
+        /* the first action 9 and the first action 8, clear included */
+        if (ext_generation() != glob_generation)
+        {
+            load_global();
+        }
+        ext_settings_t g = glob;
+        uint16_t results = 0, keys = 0;
         unsigned n = 0;
         bool seen_vol = false, seen_led = false;
         for (unsigned i = 0; i < ev.e.n; i++)
@@ -608,10 +675,13 @@ static void remove_event(void)
                 {
                     ext_clear(&g, EXT_SPEAKER_LIMIT);
                     ext_clear(&g, EXT_HEADPHONE_LIMIT);
+                    keys |= 1u << EXT_SPEAKER_LIMIT | 1u << EXT_HEADPHONE_LIMIT;
                 }
                 else if (path == 1 || path == 2)
                 {
-                    ext_set(&g, path == 1 ? EXT_SPEAKER_LIMIT : EXT_HEADPHONE_LIMIT, step);
+                    ext_key_t k = path == 1 ? EXT_SPEAKER_LIMIT : EXT_HEADPHONE_LIMIT;
+                    ext_set(&g, k, step);
+                    keys |= (uint16_t)(1u << k);
                     on = true;
                 }
             }
@@ -627,6 +697,7 @@ static void remove_event(void)
                     ext_set(&g, EXT_LED, ev.chosen);
                     on = true;
                 }
+                keys |= 1u << EXT_LED;
             }
             else
             {
@@ -638,11 +709,12 @@ static void remove_event(void)
             }
             n++;
         }
+        if (keys)
+        {
+            store_global(&g, keys, ev.e.temporary);
+        }
         if (n)
         {
-            ext_write(NULL, &g);
-            glob = g;
-            glob_generation = ext_generation();
             confirm(results, n, ev.e.tones, true);
         }
     }
@@ -778,7 +850,15 @@ bool xp_place(const uint8_t uid[8])
     if (kept.on && kept.removed && tick_ms() - kept.removed_ms <= 60000)
     {
         debug_verbose("ext: kept actions\n");
-        apply_kept(uid, &fig, &once_minutes, &once);
+        if (kept.global_once)
+        {
+            once = true;
+            once_minutes = kept.global_once;
+        }
+        else if (kept.e.n)
+        {
+            apply_kept(uid, &fig, &once_minutes, &once);
+        }
     }
     kept.on = false;
     once = once && once_minutes; /* N = 0: no one-time timer */
@@ -838,8 +918,9 @@ void xp_ear_level(bool big)
         return;
     }
     /* the ring on -> dimmed -> off -> on */
-    ev.chosen = ev.chosen == 0 ? 2 : ev.chosen == 2 ? 1
-                                                    : 0;
+    unsigned next = (ev.chosen & 3) == 0 ? 2 : (ev.chosen & 3) == 2 ? 1
+                                                                    : 0;
+    ev.chosen = (uint8_t)(next ? (ev.chosen & 4) | next : 0); /* a permanent level stays so until on */
     apply();
     level_display();
 }
