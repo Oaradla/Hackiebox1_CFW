@@ -861,14 +861,13 @@ static void startup(void)
                  mac[3], mac[4], mac[5], profiles, policy, offline ? " offline" : "", (unsigned long)shutdowns);
     settings_load();
     log_start(mac[5]);
-    /* LED lit since the start; a wait of
-     * 1000 ms and sound prompt 0. */
+    /* LED lit since the start and kept lit during the
+     * wait of 1000 ms and sound prompt 0. */
     if (offline && ledui_offline)
     {
         ledui_offline(true);
     }
     ledui_request(LED_READY_IDLE);
-    ledui_request(LED_CONFIRMATION);
     player_prompt(0, true);
 }
 
@@ -899,7 +898,6 @@ static void offline_off(void)
     {
         player_stop_prompt();
     }
-    player_prompt(8, false);
     ledui_request(LED_READY_IDLE);
     if (ledui_offline)
     {
@@ -909,10 +907,12 @@ static void offline_off(void)
     ledui_request(LED_CONFIRMATION);
     offline = false;
     debug_verbose("net: offline off\n");
+    /* the prompt after the restart, which would cut it off */
     if (changed)
     {
         restart(R_OFFLINE, "offline off");
     }
+    player_prompt(8, false);
 }
 
 /* --- setup search and access point --- */
@@ -1569,10 +1569,10 @@ void net_start(void)
 {
     /* 640 words: the restart path holds a function record
      * and debug output on top of the driver calls. */
-    static StackType_t stack[576]; /* worst case 1536 B (make stackcheck), +25 % */
+    static StackType_t stack[536]; /* worst case 1712 B, 1560 B without a panic (make stackcheck) */
     static StaticTask_t tcb;
     queue = xQueueCreateStatic(8, sizeof(event_t), queue_buf, &queue_mem);
     done = xSemaphoreCreateBinaryStatic(&done_mem);
     osi_spawn_task_start();
-    net_task = xTaskCreateStatic(task, "net", 576, NULL, 3, stack, &tcb);
+    net_task = xTaskCreateStatic(task, "net", 536, NULL, 3, stack, &tcb);
 }

@@ -520,6 +520,11 @@ static bool buffer_empty(void)
     return used == 0;
 }
 
+bool log_sent(void)
+{
+    return sock >= 0 && buffer_empty();
+}
+
 void log_drain(void)
 {
     uint32_t s = conn_session;
@@ -779,7 +784,7 @@ static void commands(void)
         close_log("pause");
         next_attempt += 100 * mac_last; /* the pause, then the normal wait */
     }
-    else if (c >= 64 && c <= 73 && ext)
+    else if (c >= 64 && c <= 74 && ext)
     {
         remote(c, have_seq ? seq : 0, k.arg, k.arg_len);
     }
@@ -898,10 +903,10 @@ void log_init(void)
 
 void log_start(uint8_t mac_last_byte)
 {
-    /* Worst case 2424 B (make stackcheck): remote command 64 storing a file
-     * (command frame of 320 B, ext.c, FatFs, SD), +25 %. */
-    static StackType_t stack[TASK_STACK(848) + TLS_STACK];
+    /* Worst case 2536 B, 2384 B without a panic (make stackcheck): remote
+     * command 64 storing a file (command frame of 320 B, ext.c, FatFs, SD). */
+    static StackType_t stack[TASK_STACK(768) + TLS_STACK];
     static StaticTask_t tcb;
     mac_last = mac_last_byte;
-    log_task = xTaskCreateStatic(task, "rtnl", TASK_STACK(848) + TLS_STACK, NULL, 2, stack, &tcb);
+    log_task = xTaskCreateStatic(task, "rtnl", TASK_STACK(768) + TLS_STACK, NULL, 2, stack, &tcb);
 }

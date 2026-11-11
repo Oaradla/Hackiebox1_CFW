@@ -17,7 +17,7 @@ pt() { $B/player_test "$@" || { echo "FAIL: player_test $* ($?)"; touch $B/playe
 SAN="-fsanitize=address,undefined -fno-sanitize-recover=all -g -O1 -w -Uunix -DCFW_DEBUG=2"
 DEF="-DCFW_BUILD_TIME=1791775993u -DCFW_REVISION=\"test\" -DCFW_VERSION=\"0.1.0\" -DCFW_BUILD_DATE=\"x\""
 gcc $SAN $DEF -DFIXED_POINT -DDISABLE_FLOAT_API -DOPUS_BUILD -DVAR_ARRAYS -DHAVE_LRINTF -I$T/player/inc -Itests/host/inc -Isrc -Isrc/cc3200 -I$O/include -I$O/celt -I$O/silk -I$O \
-  -o $B/player_test $T/player/harness.c src/player.c src/sfx.c src/xplay.c src/ext.c src/crc32.c src/taf.c $O/celt/bands.c $O/celt/celt.c $O/celt/celt_decoder.c $O/celt/cwrs.c \
+  -o $B/player_test $T/player/harness.c src/player.c src/gres.c src/sfx.c src/xplay.c src/ext.c src/crc32.c src/taf.c $O/celt/bands.c $O/celt/celt.c $O/celt/celt_decoder.c $O/celt/cwrs.c \
   $O/celt/entcode.c $O/celt/entdec.c $O/celt/entenc.c $O/celt/kiss_fft.c $O/celt/laplace.c $O/celt/mathops.c $O/celt/mdct.c \
   $O/celt/modes.c $O/celt/pitch.c $O/celt/celt_lpc.c $O/celt/quant_bands.c $O/celt/rate.c $O/celt/vq.c $O/src/opus.c \
   $O/src/opus_decoder.c third_party/opus_glue/silk_stub.c -lm
@@ -96,6 +96,25 @@ xcard; python3 $T/player/tbs.py $X profile $F sleep=1
 IDLETIME=1 pt $X "0S,0P,5000O,6000R,7000P" | grep "$KEY\|sleep\|power-off\|both\|EVENT\|^--- place"
 python3 $T/player/tbs.py $X global ears=0
 pt $X "0S,0P,5000O,8000R" | grep "power-off\|both\|EVENT\|^---"
+echo "== EXT F16 global resume: no server, server answer, no answer, download up to the position"
+xcard; python3 $T/player/tbs.py $X profile $F gres=1
+IDLETIME=1 pt $X "0S,0P,40000R" > $B/g1.log
+grep -q "pl: position -2 after 20000 ms" $B/g1.log || { echo "FAIL: no 20 s wait without a server"; exit 1; }
+python3 $T/player/tbs.py $X showstate | grep -q "flags 2 base 0 listened 12" || { echo "FAIL: position not kept as unreported"; exit 1; }
+rm -rf $B/xcard1 && cp -r $X $B/xcard1
+IDLETIME=1 pt $B/xcard1 "0S,0h,0i,0i" > $B/g1b.log
+grep -q "function 32263" $B/g1b.log && python3 $T/player/tbs.py $B/xcard1 showstate | grep -q "flags 0 base 0 listened 12" || { echo "FAIL: unreported position not sent after the hello without a placement"; exit 1; }
+SYNC_ENDED=1 IDLETIME=1 pt $B/xcard1 "0S,0P,5000R" > $B/g1c.log
+grep -q "pl: position -2 after 0 ms" $B/g1c.log || { echo "FAIL: waited for a server without the extension"; exit 1; }
+GRES_AID=00c0ffee GRES_POS=20 IDLETIME=1 pt $X "0S,0h,0P,300a,3300R" > $B/g2.log
+grep "function 3226[34]\|position\|stored position" $B/g2.log
+[ "$(grep -o "function 3226[34]" $B/g2.log | tr '\n' ' ')" = "function 32263 function 32264 function 32263 " ] || { echo "FAIL: late report, query, report"; exit 1; }
+grep -q "stored position, block 20" $B/g2.log && python3 $T/player/tbs.py $X showstate | grep -q "flags 0 base 7 listened 3" || { echo "FAIL: server position not taken"; exit 1; }
+IDLETIME=1 pt $X "0S,0h,0P,8000R" > $B/g3.log
+grep -q "pl: position -1 after 30[0-9][0-9] ms" $B/g3.log && grep -q "stored position, block 29" $B/g3.log || { echo "FAIL: no answer: 3 s, local position"; exit 1; }
+rm -f $X/CONTENT/D4C3B2A1/500304E0; python3 $T/player/tbs.py $X state $F 0x00c0ffee 25 0 0 0 0
+CLOUD=dl:$TAF DLRATE=200 IDLETIME=1 pt $X "0S,0P,90000R" > $B/g4.log
+grep -q "pl: jump 8192 -> 102400" $B/g4.log || { echo "FAIL: not resumed after downloading up to the position"; exit 1; }
 echo "== EXT F12 player API: status, pause, chapter in the pause, continue, volume, stop, remote play"
 xcard; python3 $T/player/tbs.py $X profile C1C2C3C4500304E0 spk=10
 IDLETIME=1 pt $X "0S,0P,2000i,3000p,4000i,5000n,7000p,8000c,9000v,10000s,11000i,12000r,13000R,14000r,16000i,18000P,20000i" | grep "status\|remote\|pause\|^--- place\|EVENT 1[13]"

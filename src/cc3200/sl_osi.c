@@ -376,8 +376,7 @@ OsiReturnVal_e osi_Spawn(P_OSI_SPAWN_ENTRY entry, void *value, unsigned long fla
 }
 
 /* The spawned functions are the driver's reading of asynchronous messages
- * and the event handlers of net.c, which only copy and post (384 words of
- * stack). */
+ * and the event handlers of net.c, which only copy and post. */
 static void spawn_task(void *arg)
 {
     (void)arg;
@@ -399,13 +398,15 @@ static void spawn_task(void *arg)
     }
 }
 
+#define SPAWN_STACK 272 /* worst case 816 B, 704 B without a panic (make stackcheck) */
+
 void osi_spawn_task_start(void)
 {
-    static StackType_t stack[384];
+    static StackType_t stack[SPAWN_STACK];
     static StaticTask_t tcb;
     spawn_queue = xQueueCreateStatic(SPAWN_QUEUE_LEN, sizeof(spawn_t), spawn_queue_buf, &spawn_queue_mem);
     /* Highest priority: it delivers the network processor's answers. */
-    xTaskCreateStatic(spawn_task, "slspawn", 384, NULL, configMAX_PRIORITIES - 2, stack, &tcb);
+    xTaskCreateStatic(spawn_task, "slspawn", SPAWN_STACK, NULL, configMAX_PRIORITIES - 2, stack, &tcb);
 }
 
 bool osi_driver_busy(void)

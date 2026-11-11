@@ -302,7 +302,7 @@ void settings_load(void)
         debug_printf("settings: settings.cfg bad\n");
 #endif
     }
-    debug_printf("settings: language %u, sfx %lu\n", language, (unsigned long)archive_audio_id);
+    debug_verbose("settings: language %u, sfx %lu\n", language, (unsigned long)archive_audio_id);
     ready = true;
 }
 

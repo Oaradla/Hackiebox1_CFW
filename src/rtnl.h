@@ -57,6 +57,10 @@ void log_round_done(uint32_t s);
 /* True while a log connection is open. */
 bool log_connected(void);
 
+/* True while a log connection is open and every record made so far has
+ * been written to it. */
+bool log_sent(void);
+
 /* Log drain (up to 5.52 s); does nothing
  * without a connection, while a Wi-Fi change is pending, in the log task
  * itself and in an interrupt handler. */

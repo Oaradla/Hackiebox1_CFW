@@ -118,13 +118,13 @@ void ext_path(const uint8_t uid[8], char *path)
 }
 
 /* length, highest value and the kinds (bit kind)
- * of the keys 0x01 to 0x0C. */
+ * of the keys 0x01 to 0x0D. */
 static const struct
 {
     uint8_t len;
     uint8_t kinds;
     uint16_t max;
-} keys[13] = {
+} keys[EXT_KEYS] = {
     [EXT_RESUME] = {1, 1u << EXT_PROFILE, 1},
     [EXT_SHUFFLE] = {1, 1u << EXT_PROFILE, 1},
     [EXT_SLEEP] = {2, 1u << EXT_PROFILE, 65535},
@@ -137,6 +137,7 @@ static const struct
     [EXT_VOLUME_LOCK] = {1, 1u << EXT_PROFILE | 1u << EXT_GLOBAL, 1},
     [EXT_IDLE_BATTERY] = {2, 1u << EXT_GLOBAL, 65535},
     [EXT_IDLE_STATION] = {2, 1u << EXT_GLOBAL, 65535},
+    [EXT_GLOBAL_RESUME] = {1, 1u << EXT_PROFILE, 1},
 };
 
 bool ext_tbs_valid(const uint8_t *f, unsigned n)
@@ -173,12 +174,12 @@ void ext_parse_settings(const uint8_t *f, ext_settings_t *s)
         unsigned k = r[0];
         /* unknown, not allowed in this kind, other length, out of range:
          * skipped; the last valid one counts */
-        if (k < 1 || k > 12 || !(keys[k].kinds & (1u << s->kind)) || r[1] != keys[k].len)
+        if (k < 1 || k >= EXT_KEYS || !(keys[k].kinds & (1u << s->kind)) || r[1] != keys[k].len)
         {
             continue;
         }
         uint16_t v = r[1] == 2 ? (uint16_t)(r[2] | r[3] << 8) : r[2];
-        if (v > keys[k].max || (v == 0 && k >= EXT_IDLE_BATTERY) || (k == EXT_LED && (v == 3 || v == 4)))
+        if (v > keys[k].max || (v == 0 && (k == EXT_IDLE_BATTERY || k == EXT_IDLE_STATION)) || (k == EXT_LED && (v == 3 || v == 4)))
         {
             continue;
         }
@@ -306,7 +307,7 @@ bool ext_global(ext_settings_t *out)
 unsigned ext_build(uint8_t kind, uint32_t stamp, const ext_settings_t *s, uint8_t *out)
 {
     unsigned n = 12;
-    for (unsigned k = 1; k <= 12; k++)
+    for (unsigned k = 1; k < EXT_KEYS; k++)
     {
         if (!(s->present & (1u << k)) || !(keys[k].kinds & (1u << kind)))
         {
@@ -355,6 +356,10 @@ void ext_pack_report(const ext_settings_t *s, uint32_t *packed, uint32_t *values
     if (ext_has(s, EXT_BOTH_EARS))
     {
         p |= (uint32_t)(s->value[EXT_BOTH_EARS] & 1) << 16;
+    }
+    if (ext_has(s, EXT_GLOBAL_RESUME))
+    {
+        p |= 1u << 20 | (uint32_t)(s->value[EXT_GLOBAL_RESUME] & 1) << 21;
     }
     if (ext_has(s, EXT_SLEEP))
     {
@@ -502,7 +507,7 @@ static void hello_answer(void)
     log_arg_num(&a, (int32_t)boot_rolled_back);
     log_fn(LOG_INFO, 22, 32257, 0, &a);
     answered = true;
-    debug_printf("ext: hello, capabilities 0x%04lx\n", (unsigned long)EXT_CAPS);
+    debug_verbose("ext: hello, capabilities 0x%04lx\n", (unsigned long)EXT_CAPS);
 }
 
 void ext_hello(void)
@@ -610,8 +615,11 @@ void ext_state_pack(const ext_state_t *s, uint8_t r[32])
     ext_put32(r + 20, s->seed);
     r[24] = s->index;
     r[25] = s->chapters;
-    r[26] = s->flags & EXT_STATE_SHUFFLING;
-    memset(r + 27, 0, 4);
+    r[26] = s->flags & (EXT_STATE_SHUFFLING | EXT_STATE_UNREPORTED);
+    r[27] = (uint8_t)s->base;
+    r[28] = (uint8_t)(s->base >> 8);
+    r[29] = (uint8_t)s->listened;
+    r[30] = (uint8_t)(s->listened >> 8);
     uint8_t c = 0xA5;
     for (int i = 0; i < 31; i++)
     {
@@ -635,6 +643,8 @@ bool ext_state_unpack(const uint8_t r[32], ext_state_t *s)
     s->index = r[24];
     s->chapters = r[25];
     s->flags = r[26];
+    s->base = (uint16_t)(r[27] | r[28] << 8);
+    s->listened = (uint16_t)(r[29] | r[30] << 8);
     return s->sequence && c == r[31];
 }
 
@@ -669,7 +679,9 @@ bool ext_state_get(const uint8_t uid[8], ext_state_t *out)
         {
             break;
         }
-        if (ext_state_unpack(r, &s) && !memcmp(s.uid, uid, 8) && (!found || s.sequence > out->sequence))
+        if (ext_state_unpack(r, &s) &&
+            (uid ? !memcmp(s.uid, uid, 8) : (s.flags & EXT_STATE_UNREPORTED) != 0) &&
+            (!found || s.sequence > out->sequence))
         {
             *out = s;
             found = true;

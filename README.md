@@ -75,6 +75,7 @@ can also be a normal Tonie, a Tonie with its own settings, or an event tag.
 | Setting | Effect |
 | --- | --- |
 | Resume | The Tonie continues where it stopped, even when other Tonies played in between or the box was off. The original remembers only the Tonie played last. When the content has played to its end, the next start is from the beginning. |
+| Global resume | Resume across boxes: the Tonie taken off one box continues on the next box where it stopped. Content the next box does not have yet is downloaded first. If two boxes played the Tonie offline, each keeps its own position until one is chosen in teddyCloud's web interface. Turns resume on. Needs teddyCloud with CFW support from `tc_v0.7.1-cfw.9`. |
 | Shuffle | Contents with 2 to 99 chapters play every chapter once in a random order. Slapping moves through this order. Without resume, the order is kept as long as no other Tonie plays in between; with resume, it is always kept. A finished order, or the upside-down slap, starts a new one. |
 | Sleep timer | After N minutes the box stops. During the first third the volume stays as it is, then it fades linearly to silence. Taking the Tonie off pauses the timer, putting it back continues it. Changing the volume with the ears during the fade fades from the new volume. |
 | Volume limit | Its own limit for speaker and headphones, in all 16 volume steps (0 to 15), and it may be higher than the box's. The original only knows 4 levels per box. |

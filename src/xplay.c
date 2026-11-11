@@ -171,7 +171,7 @@ static int led_in_effect(void)
 static void copy_keys(ext_settings_t *dst, const ext_settings_t *src, uint16_t mask)
 {
     dst->present = (uint16_t)((dst->present & ~mask) | (src->present & mask));
-    for (unsigned k = 0; k < 13; k++)
+    for (unsigned k = 0; k < EXT_KEYS; k++)
     {
         if (mask & (1u << k))
         {
@@ -190,7 +190,7 @@ static void load_global(void)
         memset(&f, 0, sizeof f);
     }
     uint16_t changed = (uint16_t)(f.present ^ stored.present);
-    for (unsigned k = 0; k < 13; k++)
+    for (unsigned k = 0; k < EXT_KEYS; k++)
     {
         if (f.value[k] != stored.value[k])
         {
@@ -950,7 +950,7 @@ static uint32_t le32(const uint8_t *p)
 
 void xp_locked(unsigned gesture, unsigned source)
 {
-    debug_printf("ext: gesture %u locked, source %u\n", gesture, source);
+    debug_verbose("ext: gesture %u locked, source %u\n", gesture, source);
     if (!ext_hello_received())
     {
         return;

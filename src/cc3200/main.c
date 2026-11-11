@@ -57,7 +57,7 @@ enum
     PRIO_OP = 2,
 };
 
-#define STACK_OP 544 /* worst case 1432 B (make stackcheck), +25 % */
+#define STACK_OP 512 /* worst case 1712 B, 1560 B without a panic (make stackcheck) */
 
 static StackType_t op_stack[STACK_OP];
 static StaticTask_t op_tcb;

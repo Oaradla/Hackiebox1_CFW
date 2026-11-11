@@ -85,7 +85,7 @@ static StaticQueue_t queue_mem;
 static uint8_t queue_buf[QUEUE_LEN * sizeof(request_t)];
 static QueueHandle_t queue;
 
-#define STACK TASK_STACK(376) /* worst case 1192 B (make stackcheck), +25 % */
+#define STACK TASK_STACK(344) /* worst case 1144 B, 992 B without a panic (make stackcheck) */
 static StackType_t stack[STACK];
 static StaticTask_t tcb;
 

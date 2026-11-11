@@ -419,10 +419,10 @@ static void tag_task(void *arg)
 
 void tag_start(void)
 {
-    static StackType_t stack[TASK_STACK(352)]; /* worst case 800 B (make stackcheck), +25 % */
+    static StackType_t stack[TASK_STACK(320)]; /* worst case 1128 B, 976 B without a panic (make stackcheck) */
     static StaticTask_t tcb;
     /* Above the player, sound, LED and input activities (priorities 3 and
      * 4): the transmit FIFO refill must not wait
      * behind the decoder; below the SimpleLink spawn activity. */
-    xTaskCreateStatic(tag_task, "tag", TASK_STACK(352), NULL, 5, stack, &tcb);
+    xTaskCreateStatic(tag_task, "tag", TASK_STACK(320), NULL, 5, stack, &tcb);
 }

@@ -25,6 +25,7 @@
 #include "audio_out.h"
 #include "cloud.h"
 #include "debug.h"
+#include "gres.h"
 #include "journal.h"
 #include "ledui.h"
 #include "monitor.h"
@@ -452,6 +453,7 @@ uint32_t player_decode_ms;
 /* Output: stream buffer being filled. */
 static int16_t *out;
 static unsigned out_frames;
+static uint32_t heard, heard_reported; /* content frames output, at 16 kHz */
 
 static void read_ahead(void);
 
@@ -479,6 +481,7 @@ static void emit(const int16_t *s, unsigned frames)
         }
         memcpy(out + 2 * out_frames, s, 4 * n);
         out_frames += n;
+        heard += prompt_mode ? 0 : n;
         s += 2 * n;
         frames -= n;
         if (out_frames == AUDIO_OUT_FRAMES)
@@ -1122,9 +1125,12 @@ static void download_watch(void);
  * until a gesture moves the position (it is carried out and playback goes
  * on). The box counts as idle meanwhile; a removal, a placement, a stop,
  * a prompt or the power-off end the pause without continuing. */
+static void report_now(gres_reason_t reason);
+
 static void pause_loop(void)
 {
     debug_verbose("pl: paused at %lu\n", (unsigned long)read_pos);
+    report_now(GRES_STOPPED);
     want_card = false;
     if (out && out_frames)
     {
@@ -1178,7 +1184,7 @@ static void pause_loop(void)
 }
 
 /* Events while the content plays (state Content). */
-static void poll_events(void)
+static void poll_once(void)
 {
     event_t e;
     if (stop_request)
@@ -1251,11 +1257,16 @@ static void poll_events(void)
     {
         gesture(&e);
     }
-    if (rc_pause && !stop_request && !prompt_mode)
+}
+
+static void poll_events(void)
+{
+    poll_once();
+    while (rc_pause && !stop_request && !prompt_mode)
     {
         rc_pause = false;
         pause_loop();
-        poll_events(); /* what ended the pause */
+        poll_once(); /* what ended the pause */
     }
 }
 
@@ -1601,6 +1612,11 @@ static void play_content(void)
             log_event(EVT_PLAYBACK_STARTED, uid_playing); /* type 12 */
         }
         started = content_read = true;
+        if (!prompt_mode && heard - heard_reported >= 30u * 16000u)
+        {
+            heard_reported = heard;
+            report_now(GRES_PLAYING);
+        }
         if (!prompt_mode)
         {
             int c = shuf.on ? shuf.order[shuf.index] : current_chapter();
@@ -1798,7 +1814,9 @@ static bool language_chapter(void)
 /* --- F1 and F2 state --- */
 
 static ext_state_t xst; /* the figure's record as read at the start */
-static bool xst_ok, x_resume, x_shuffle;
+static bool xst_ok, x_resume, x_shuffle, x_global;
+static bool gres_taken;         /* the server's position was stored for this placement */
+static bool backlog_due = true; /* unreported positions may wait for the server */
 
 static bool profile_on(ext_key_t k)
 {
@@ -1809,8 +1827,10 @@ static bool profile_on(ext_key_t k)
 /* Start position and shuffle order of a complete file; returns J. */
 static uint32_t ext_start(const uint8_t uid[8], bool ref)
 {
+    x_global = profile_on(EXT_GLOBAL_RESUME);
+    ref = ref && !gres_taken;
     uint32_t j = ref ? resume.block * TAF_BLOCK : 0;
-    x_resume = profile_on(EXT_RESUME);
+    x_resume = profile_on(EXT_RESUME) || x_global;
     x_shuffle = profile_on(EXT_SHUFFLE);
     xst_ok = (x_resume || x_shuffle) && ext_state_get(uid, &xst);
     bool same = xst_ok && xst.audio_id == hdr.audio_id;
@@ -1850,32 +1870,66 @@ static uint32_t ext_start(const uint8_t uid[8], bool ref)
     return j;
 }
 
-/* the record after the playback, when something changed. */
-static void ext_stop(const uint8_t uid[8])
+/* the figure's state as it stands now. */
+static void state_now(const uint8_t uid[8], ext_state_t *r)
 {
-    if (!(x_resume || x_shuffle) || !content_read)
-    {
-        return;
-    }
-    ext_state_t r = {0};
-    memcpy(r.uid, uid, 8);
-    r.audio_id = hdr.audio_id;
+    memset(r, 0, sizeof *r);
+    memcpy(r->uid, uid, 8);
+    r->audio_id = hdr.audio_id;
     /* while the jump to the start position is pending, its target */
-    r.position = content_ended ? 0 : resume_names(uid) ? resume.block
-                                                       : jump_start / TAF_BLOCK;
+    r->position = content_ended ? 0 : resume_names(uid) ? resume.block
+                                                        : jump_start / TAF_BLOCK;
     if (shuf.on)
     {
-        r.seed = shuf.seed;
-        r.index = shuf.index;
-        r.chapters = shuf.n;
-        r.flags = shuf.finished || content_ended ? 0 : EXT_STATE_SHUFFLING;
+        r->seed = shuf.seed;
+        r->index = shuf.index;
+        r->chapters = shuf.n;
+        r->flags = shuf.finished || content_ended ? 0 : EXT_STATE_SHUFFLING;
     }
     else if (xst_ok)
     {
-        r.seed = xst.seed;
+        r->seed = xst.seed;
+    }
+    if (x_global)
+    {
+        uint32_t t = (xst_ok ? xst.listened : 0) + heard / 16000u;
+        r->base = xst_ok ? xst.base : 0;
+        r->listened = (uint16_t)(t > 65535 ? 65535 : t);
+    }
+}
+
+static void report_now(gres_reason_t reason)
+{
+    if (!prompt_mode && content_read)
+    {
+        ext_state_t r;
+        state_now(uid_playing, &r);
+        gres_report(&r, x_global, reason);
+    }
+}
+
+/* the record after the playback, when something changed. */
+static void ext_stop(const uint8_t uid[8])
+{
+    if (!content_read)
+    {
+        return;
+    }
+    ext_state_t r;
+    state_now(uid, &r);
+    if (x_global && !gres_online())
+    {
+        r.flags |= EXT_STATE_UNREPORTED;
+        backlog_due = true;
+    }
+    gres_report(&r, x_global, content_ended ? GRES_ENDED : GRES_STOPPED);
+    if (!(x_resume || x_shuffle))
+    {
+        return;
     }
     if (xst_ok && xst.audio_id == r.audio_id && xst.position == r.position && xst.seed == r.seed &&
-        xst.index == r.index && xst.chapters == r.chapters && (xst.flags & 1) == r.flags)
+        xst.index == r.index && xst.chapters == r.chapters && xst.flags == r.flags && xst.base == r.base &&
+        xst.listened == r.listened)
     {
         return;
     }
@@ -1921,6 +1975,7 @@ static void play_file(const uint8_t uid[8])
      * is complete. */
     jump_start = 0;
     end_pos = size;
+    heard = heard_reported = 0;
     bool ref = resume_names(uid) && resume.block;
     uint32_t resume_j = ext_start(uid, ref);
     if (downloading)
@@ -1963,10 +2018,58 @@ static void play_file(const uint8_t uid[8])
     }
 }
 
-/* waits until the download has written 65536 bytes or is
+/* One step of a wait while preparing: events, removal, power-off and
+ * stop of all; true when the wait ends (*removed: the figure went). */
+static bool prep_poll(bool *removed)
+{
+    event_t e;
+    if (xQueueReceive(queue, &e, pdMS_TO_TICKS(20)) == pdTRUE && !ext_event(&e))
+    {
+        debug_printf("pl: %s while preparing (6218)\n", gesture_name(&e));
+    }
+    if (power_off_wanted)
+    {
+        return true;
+    }
+    sync_request_busy();
+    figure_take();
+    if (stop_all_req)
+    {
+        stop_all_req = false;
+        stopped_all = *removed = true;
+        figure_changed = figure_present; /* handled again after setup mode */
+        return true;
+    }
+    if (figure_changed && !figures_held())
+    {
+        /* held back during an online round */
+        figure_changed = false;
+        if (figure_removed || !figure_present)
+        {
+            figure_removed = false;
+            figure_changed = figure_present;
+            *removed = true;
+            log_event(EVT_PLAYBACK_STOPPED, NULL);
+            xp_remove();
+            debug_printf("pl: removed while loading\n");
+            return true;
+        }
+        if (remote_playing)
+        {
+            /* command 71: a placed figure ends it */
+            figure_changed = *removed = true;
+            log_event(EVT_PLAYBACK_STOPPED, NULL);
+            return true;
+        }
+        debug_printf("pl: placed while preparing (6157)\n");
+    }
+    return false;
+}
+
+/* waits until the download has written need bytes or is
  * complete; false when it failed first or the figure was removed (the
  * download then goes on). */
-static bool wait_download(bool *removed)
+static bool wait_download(bool *removed, uint32_t need)
 {
     *removed = false;
     for (;;)
@@ -1981,52 +2084,84 @@ static bool wait_download(bool *removed)
         {
             download_complete();
         }
-        if (d->done || d->readable >= 65536)
+        if (d->done || d->readable >= need)
         {
             return true;
         }
-        event_t e;
-        if (xQueueReceive(queue, &e, pdMS_TO_TICKS(20)) == pdTRUE && !ext_event(&e))
-        {
-            debug_printf("pl: %s while preparing (6218)\n", gesture_name(&e));
-        }
-        if (power_off_wanted)
+        if (prep_poll(removed))
         {
             return false;
-        }
-        sync_request_busy();
-        figure_take();
-        if (stop_all_req)
-        {
-            stop_all_req = false;
-            stopped_all = *removed = true;
-            figure_changed = figure_present; /* handled again after setup mode */
-            return false;
-        }
-        if (figure_changed && !figures_held())
-        {
-            /* held back during an online round */
-            figure_changed = false;
-            if (figure_removed || !figure_present)
-            {
-                figure_removed = false;
-                figure_changed = figure_present;
-                *removed = true;
-                log_event(EVT_PLAYBACK_STOPPED, NULL);
-                xp_remove();
-                debug_printf("pl: removed while loading\n");
-                return false;
-            }
-            if (remote_playing)
-            {
-                /* command 71: a placed figure ends it */
-                figure_changed = *removed = true;
-                log_event(EVT_PLAYBACK_STOPPED, NULL);
-                return false;
-            }
-            debug_printf("pl: placed while preparing (6157)\n");
         }
     }
+}
+
+/* Global resume: asks the server for the figure's position and stores
+ * it, waiting while the box is about to reach the server; false when the
+ * figure went meanwhile. */
+static bool position_wait(const uint8_t uid[8])
+{
+    gres_taken = false;
+    if (!profile_on(EXT_GLOBAL_RESUME))
+    {
+        return true;
+    }
+    ext_state_t r;
+    if (!ext_state_get(uid, &r))
+    {
+        memset(&r, 0, sizeof r);
+        memcpy(r.uid, uid, 8);
+    }
+    ledui_request(LED_CONTENT_DOWNLOAD);
+    uint32_t t0 = tick_ms(), asked = 0;
+    gres_answer_t a = GRES_NONE;
+    bool removed = false;
+    for (;;)
+    {
+        monitor_mark(ACT_SD);
+        if (!asked)
+        {
+            if (gres_online())
+            {
+                gres_query(&r);
+                asked = tick_ms() | 1;
+            }
+            else if (net_offline() || net_setup_active() || ext_hello_received() || cloud_sync_ended() ||
+                     net_state() == 1 || net_state() == 2 || net_state() == 5 || tick_ms() - t0 >= 20000)
+            { /* no network, a failed one, a server without the extension or no log connection */
+                break;
+            }
+        }
+        else if ((a = gres_answer(&r)) != GRES_NONE || tick_ms() - asked >= 3000)
+        {
+            break;
+        }
+        if (prep_poll(&removed))
+        {
+            break;
+        }
+    }
+    if (asked)
+    {
+        a = gres_cancel(&r);
+    }
+    if (a == GRES_TAKE)
+    {
+        gres_taken = ext_state_put(&r);
+    }
+    debug_printf("pl: position %d after %lu ms\n", asked ? (int)a : -2, (unsigned long)(tick_ms() - t0));
+    return !removed && !power_off_wanted;
+}
+
+/* Global resume: the bytes the download must have written before the
+ * figure plays, so that it continues at its position. */
+static uint32_t position_need(const uint8_t uid[8])
+{
+    ext_state_t r;
+    if (profile_on(EXT_GLOBAL_RESUME) && ext_state_get(uid, &r) && r.position && r.position < 0x7FFFF)
+    {
+        return (r.position + 1) * TAF_BLOCK > 65536 ? (r.position + 1) * TAF_BLOCK : 65536;
+    }
+    return 65536;
 }
 
 static void start_content(const uint8_t uid[8], const uint8_t *token)
@@ -2046,6 +2181,14 @@ static void start_content(const uint8_t uid[8], const uint8_t *token)
     range_refused = false;
     dl_complete = false;
     dl_audio_id = 0;
+    if (!position_wait(uid))
+    {
+        if (!stopped_all && !power_off_wanted)
+        {
+            ledui_request(LED_READY_IDLE);
+        }
+        return;
+    }
 
     taf_state_t s = taf_open(&file, path, &hdr, block, false);
     static const char *const names[] = {"complete", "incomplete", "missing", "outdated", "invalid", "not readable"};
@@ -2118,7 +2261,7 @@ static void start_content(const uint8_t uid[8], const uint8_t *token)
     }
     dl_serial = cloud_dl.serial;
     bool removed;
-    if (!wait_download(&removed))
+    if (!wait_download(&removed, position_need(uid)))
     {
         if (removed || power_off_wanted)
         {
@@ -2612,6 +2755,10 @@ static void task(void *arg)
             sync_wanted = false;
             sync_act();
             continue;
+        }
+        if (backlog_due)
+        {
+            backlog_due = gres_backlog();
         }
         event_t e;
         /* Idle: chapter and wind have no effect; the progress mark at least

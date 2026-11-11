@@ -210,6 +210,20 @@ static unsigned activity(void)
     return ACT_NONE;
 }
 
+/* The panic line is written without printf: its stack would come on top of
+ * the deepest point of the failing activity. */
+static void put_num(uint32_t v, unsigned base, unsigned width)
+{
+    char b[10];
+    unsigned i = sizeof b;
+    do
+    {
+        b[--i] = "0123456789abcdef"[v % base];
+        v /= base;
+    } while (v || sizeof b - i < width);
+    debug_write(b + i, (int)(sizeof b - i));
+}
+
 static void delay_ms(bool paced, uint32_t ms)
 {
     if (paced)
@@ -236,8 +250,25 @@ static void __attribute__((noreturn)) do_panic(unsigned act, uint32_t ret, panic
     watchdog_feed();                                                      /* step 3 */
     port_retained_write(act | (uint32_t)id << 4 | (value & 0xFFFu) << 20, /* step 4 */
                         (value >> 12 & 0xFFFFFu) | slot_bits() << 20 | REC_VERSION);
-    debug_printf("PANIC %s act %u id %u pos %04x val 0x%08lx %.79s\n", CFW_VERSION_STRING, act,
-                 (unsigned)id, pos, (unsigned long)value, msg ? msg : ""); /* step 5 */
+    if (paced) /* step 5: one line, not interleaved with other output */
+    {
+        vTaskSuspendAll();
+    }
+    debug_write("PANIC " CFW_VERSION_STRING " act ", 80);
+    put_num(act, 10, 1);
+    debug_write(" id ", 4);
+    put_num(id, 10, 1);
+    debug_write(" pos ", 5);
+    put_num(pos, 16, 4);
+    debug_write(" val 0x", 7);
+    put_num(value, 16, 8);
+    debug_write(" ", 1);
+    debug_write(msg ? msg : "", 79);
+    debug_write("\n", 1);
+    if (paced)
+    {
+        xTaskResumeAll();
+    }
     debug_flush();
     /* Step 6 (log drain) comes with the log upload. Step 7. */
     if (phase == PHASE_RESTARTING)

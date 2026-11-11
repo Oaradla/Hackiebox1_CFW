@@ -13,6 +13,7 @@
 #include "audio_out.h"
 #include "cloud.h"
 #include "ext.h"
+#include "gres.h"
 #include "player.h"
 #include "rtnl.h"
 #include "sound.h"
@@ -59,6 +60,7 @@ BaseType_t xQueueSend(QueueHandle_t q, const void *it, TickType_t t)
 static void script_idle(void);
 static void script_tick(void);
 static bool script_pending(void);
+static void dl_tick(void);
 BaseType_t xQueueReceive(QueueHandle_t q, void *it, TickType_t t)
 {
     if (q->head == q->tail)
@@ -69,6 +71,7 @@ BaseType_t xQueueReceive(QueueHandle_t q, void *it, TickType_t t)
             uint32_t d = t == portMAX_DELAY || t >= 1000 ? 1000 : t;
             sim_ms += d;
             frames_out += 16ull * d;
+            dl_tick(); /* a download goes on meanwhile */
             script_tick();
         }
         else if (t == portMAX_DELAY || t >= 1000)
@@ -105,6 +108,9 @@ UBaseType_t uxTaskGetStackHighWaterMark(TaskHandle_t t)
     return 0;
 }
 uint32_t tick_ms(void) { return sim_ms; }
+static bool log_open;
+bool log_connected(void) { return log_open; }
+bool log_sent(void) { return log_open; }
 void tick_wait(uint32_t n) { sim_ms += n; }
 void monitor_mark(activity_t a) { (void)a; }
 void monitor_box_activity(bool b) { printf("[%6u] STUB box activity %s\n", sim_ms, b ? "busy" : "idle"); }
@@ -131,7 +137,6 @@ void debug_printf(const char *f, ...)
 static int16_t abuf[2 * AUDIO_OUT_FRAMES];
 int16_t *audio_out_buffer(void) { return abuf; }
 static void script_tick(void);
-static void dl_tick(void);
 static void full(const char *p, char *out);
 void audio_out_commit(void)
 {
@@ -264,6 +269,7 @@ bool cloud_holds_figures(void)
     return sim_ms >= a && sim_ms < b;
 }
 bool cloud_sync_running(void) { return false; }
+bool cloud_sync_ended(void) { return getenv("SYNC_ENDED") != NULL; }
 /* --- extension stubs: sound with steps per path, settings, clock, log --- */
 settings_t settings;
 static unsigned snd_path = 1, snd_step[3] = {0, 8, 8}, snd_lim[3] = {15, 15, 15};
@@ -612,6 +618,26 @@ static void act(char w)
             fclose(g);
         }
         printf("--- global file from the server: %d\n", ext_store(f, 8 + (unsigned)n));
+        break;
+    }
+    case 'h':
+        printf("--- hello, log connection open\n");
+        log_open = true;
+        ext_hello();
+        break;
+    case 'a':
+    case 'k':
+    {
+        /* command 74: take $GRES_AID/$GRES_POS as revision 7, or keep */
+        uint8_t g[26] = {0};
+        uint32_t aid = getenv("GRES_AID") ? (uint32_t)strtoul(getenv("GRES_AID"), NULL, 16) : 0;
+        uint32_t pos = getenv("GRES_POS") ? (uint32_t)atoi(getenv("GRES_POS")) : 0;
+        memcpy(g, uid, 8);
+        g[8] = w == 'a' ? 0 : 1;
+        g[9] = 7;
+        memcpy(g + 11, &aid, 4);
+        memcpy(g + 15, &pos, 4);
+        printf("--- position answer %c -> %u\n", w, gres_command(g, w == 'a' ? 26 : 9));
         break;
     }
     case 'G':

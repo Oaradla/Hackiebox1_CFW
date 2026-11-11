@@ -9,6 +9,7 @@
 #include "battery.h"
 #include "board.h"
 #include "ext.h"
+#include "gres.h"
 #include "player.h"
 #include "power.h"
 #include "remote.h"
@@ -66,6 +67,8 @@ uint8_t remote_command(uint8_t c, const uint8_t *arg, unsigned n)
         return PLAYER_RC_DONE;
     case 73:
         return cloud_remote_update_check ? (uint8_t)cloud_remote_update_check() : PLAYER_RC_STATE;
+    case 74:
+        return gres_command(arg, n);
     default:
         return PLAYER_RC_STATE;
     }

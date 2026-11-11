@@ -30,13 +30,14 @@
 #define EXT_CAP_F13_BATTERY (1u << 11)
 #define EXT_CAP_F14_IDLE_TIMES (1u << 12)
 #define EXT_CAP_F15_TEMPORARY (1u << 13)
+#define EXT_CAP_F16_GLOBAL_RESUME (1u << 14) /* requires F1 and F12 */
 /* 0x3FFF. F9 has no bit. F12 has no bit dependency; its
  * commands 64 and 73 use ext_store() and cloud_remote_update_check()
  * (remote.c). */
 #define EXT_CAPS (EXT_CAP_F1_RESUME | EXT_CAP_F2_SHUFFLE | EXT_CAP_F3_SLEEP | EXT_CAP_F4_EVENT_TAGS | EXT_CAP_F5_RESTART | \
                   EXT_CAP_F6_PER_FIGURE | EXT_CAP_F8_FOREIGN | EXT_CAP_F7_GLOBAL | EXT_CAP_F10_LOCKS |                     \
                   EXT_CAP_F11_EVENT_EXT | EXT_CAP_F12_REMOTE | EXT_CAP_F13_BATTERY | EXT_CAP_F14_IDLE_TIMES |              \
-                  EXT_CAP_F15_TEMPORARY)
+                  EXT_CAP_F15_TEMPORARY | EXT_CAP_F16_GLOBAL_RESUME)
 
 /* --- protocol (called by the cloud activity) --- */
 
@@ -101,7 +102,10 @@ typedef enum
     EXT_VOLUME_LOCK = 0x0A,
     EXT_IDLE_BATTERY = 0x0B, /* global only; idle power-off minutes, absent = 10 */
     EXT_IDLE_STATION = 0x0C,
+    EXT_GLOBAL_RESUME = 0x0D, /* profile only; implies resume */
 } ext_key_t;
+
+#define EXT_KEYS 14 /* keys 0 to 0x0D */
 
 /* A profile or the global file: value[k] of key k counts when bit k of
  * present is set. */
@@ -109,7 +113,7 @@ typedef struct
 {
     uint8_t kind;
     uint16_t present;
-    uint16_t value[13];
+    uint16_t value[EXT_KEYS];
     uint32_t stamp;
 } ext_settings_t;
 
@@ -201,15 +205,19 @@ typedef struct
     uint32_t position; /* next block */
     uint32_t seed;
     uint8_t index, chapters;
-    uint8_t flags; /* EXT_STATE_SHUFFLING */
+    uint8_t flags;     /* EXT_STATE_SHUFFLING, EXT_STATE_UNREPORTED */
+    uint16_t base;     /* global resume: revision of the server's position */
+    uint16_t listened; /* global resume: seconds heard since base, held at 65535 */
 } ext_state_t;
 #define EXT_STATE_SHUFFLING 0x01
+#define EXT_STATE_UNREPORTED 0x02 /* global resume: position not sent to the server yet */
 
 void ext_state_pack(const ext_state_t *s, uint8_t out[32]);
 /* false when the record is free (sequence 0 or check wrong). */
 bool ext_state_unpack(const uint8_t in[32], ext_state_t *s);
 
-/* The record of uid in /ext/STATE.BIN; false when there is none. */
+/* The record of uid in /ext/STATE.BIN, for uid NULL a record with
+ * EXT_STATE_UNREPORTED; false when there is none. */
 bool ext_state_get(const uint8_t uid[8], ext_state_t *out);
 /* Writes s (its sequence is set to one above the highest in the file)
  * into the record of its UID, else the first free, else the oldest. */

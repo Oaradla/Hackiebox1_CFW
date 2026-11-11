@@ -13,6 +13,8 @@ static const char *pcTaskGetName(TaskHandle_t t)
     return "";
 }
 static void vTaskSuspend(TaskHandle_t t) { (void)t; }
+static void vTaskSuspendAll(void) {}
+static int xTaskResumeAll(void) { return 0; }
 #include "panic.c"
 
 uint32_t retained[2];
@@ -27,6 +29,12 @@ void debug_printf(const char *f, ...)
     printf("    | ");
     vprintf(f, a);
     va_end(a);
+}
+
+static char out[64];
+void debug_write(const char *s, int n)
+{
+    strncat(out, s, (size_t)n);
 }
 
 static void check(bool c, const char *what)
@@ -54,6 +62,12 @@ int main(void)
     check(!broke_after(w1, w2 & ~REC_VERSION, START_HIB_EXIT), "state record with the same first word: no marker");
     retained_progress(1);
     check(!broke_after(retained[0], retained[1], START_POWER_ON), "another progress value: no marker");
+    printf("P2 numbers of the panic line\n");
+    put_num(0x1a, 16, 4);
+    put_num(0, 10, 1);
+    put_num(0xdeadbeef, 16, 8);
+    put_num(4294967295u, 10, 1);
+    check(!strcmp(out, "001a0deadbeef4294967295"), "hex with width, zero, full width, largest decimal");
     printf("%d failure(s)\n", failures);
     return failures != 0;
 }

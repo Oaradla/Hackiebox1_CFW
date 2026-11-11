@@ -1,6 +1,6 @@
 /*
  * F12 remote commands: the actions
- * behind the commands 64 to 73 and the status snapshot. The frames, the
+ * behind the commands 64 to 74 and the status snapshot. The frames, the
  * acknowledgement and the records are the log activity's (rtnl.c).
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
@@ -22,7 +22,7 @@ typedef struct
     uint32_t locks;   /* bit 0 slap, 1 tilt, 2 volume */
 } remote_status_t;
 
-/* Carries out remote command c (64 to 73) with its arguments; the result:
+/* Carries out remote command c (64 to 74) with its arguments; the result:
  * 0 done, 1 not possible now, 2 invalid arguments. */
 uint8_t remote_command(uint8_t c, const uint8_t *arg, unsigned n);
 

@@ -6,11 +6,11 @@
 #        tbs.py <card> show <uid hex | global>
 #        tbs.py <card> state <uid hex> audio_id position seed index chapters flags
 #        tbs.py <card> showstate
-# keys: resume shuffle sleep spk hp led ears slap tilt vol idlebat idlest
+# keys: resume shuffle sleep spk hp led ears slap tilt vol idlebat idlest gres
 # SPDX-License-Identifier: GPL-3.0-or-later
 import os, struct, sys
 
-KEYS = {'resume': 1, 'shuffle': 2, 'sleep': 3, 'spk': 4, 'hp': 5, 'led': 6, 'ears': 7, 'slap': 8, 'tilt': 9, 'vol': 10, 'idlebat': 11, 'idlest': 12}
+KEYS = {'resume': 1, 'shuffle': 2, 'sleep': 3, 'spk': 4, 'hp': 5, 'led': 6, 'ears': 7, 'slap': 8, 'tilt': 9, 'vol': 10, 'idlebat': 11, 'idlest': 12, 'gres': 13}
 NAMES = {v: k for k, v in KEYS.items()}
 
 
@@ -103,5 +103,6 @@ elif cmd == 'showstate':
         r = d[i:i + 32]
         seq, aid, pos, seed = struct.unpack('<IIII', r[8:24])
         if seq:
-            print('  %s seq %d audio_id %08x position %d seed %08x index %d chapters %d flags %d' %
-                  (r[:8].hex().upper(), seq, aid, pos, seed, r[24], r[25], r[26]))
+            base, heard = struct.unpack('<HH', r[27:31])
+            print('  %s seq %d audio_id %08x position %d seed %08x index %d chapters %d flags %d base %d listened %d' %
+                  (r[:8].hex().upper(), seq, aid, pos, seed, r[24], r[25], r[26], base, heard))

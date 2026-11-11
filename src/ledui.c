@@ -615,8 +615,8 @@ static void task(void *arg)
 
 void ledui_start(void)
 {
-    static StackType_t stack[TASK_STACK(256)]; /* worst case 592 B (make stackcheck) */
+    static StackType_t stack[TASK_STACK(160)]; /* worst case 544 B, 392 B without a panic (make stackcheck) */
     static StaticTask_t tcb;
     queue = xQueueCreateStatic(8, 1, queue_buf, &queue_mem);
-    xTaskCreateStatic(task, "led", TASK_STACK(256), NULL, 4, stack, &tcb); /* above the player, as the sound activity */
+    xTaskCreateStatic(task, "led", TASK_STACK(160), NULL, 4, stack, &tcb); /* above the player, as the sound activity */
 }

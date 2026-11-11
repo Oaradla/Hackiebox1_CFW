@@ -71,11 +71,16 @@ static union
 
 /* Figure events wait while an online round or a
  * synchronisation runs. */
-static volatile bool round_running, sync_running;
+static volatile bool round_running, sync_running, sync_ended;
 
 bool cloud_sync_running(void)
 {
     return sync_running;
+}
+
+bool cloud_sync_ended(void)
+{
+    return sync_ended;
 }
 
 bool cloud_holds_figures(void)
@@ -1730,8 +1735,8 @@ static void content_download(const job_t *j)
     }
     close_conn(&c);
     f_close(&f);
-    debug_printf("cloud: rate net %lu wr %lu dec %lu ms, wr max %lu, %lu >= 50\n", (unsigned long)r_net,
-                 (unsigned long)r_wr, (unsigned long)player_decode_ms, (unsigned long)wr_max, (unsigned long)wr_slow);
+    debug_verbose("cloud: rate net %lu wr %lu dec %lu ms, wr max %lu, %lu >= 50\n", (unsigned long)r_net,
+                  (unsigned long)r_wr, (unsigned long)player_decode_ms, (unsigned long)wr_max, (unsigned long)wr_slow);
     if (!e && pos == z)
     {
         sd_set_outdated(path, false); /* complete: the mark set by prepare() goes */
@@ -2599,6 +2604,7 @@ static cloud_error_t sync_run(uint32_t s, bool user)
     monitor_sync_activity(false);
     debug_printf("cloud: freshness session %s\n", e ? cloud_error_name(e) : "complete");
     session_completed |= !e;
+    sync_ended |= e != CE_CANCELLED;
     if (e && !session_completed)
     {
         retry_at = tick_ms() + (60000u << retries);
@@ -3004,7 +3010,7 @@ void cloud_init(void)
 
 void cloud_start(void)
 {
-    static StackType_t stack[TASK_STACK(1248)]; /* worst case 3952 B (make stackcheck), +25 % */
+    static StackType_t stack[TASK_STACK(1320)]; /* worst case 4376 B, 4224 B without a panic (make stackcheck) */
     static StaticTask_t tcb;
-    xTaskCreateStatic(task, "cloud", TASK_STACK(1248), NULL, 2, stack, &tcb);
+    xTaskCreateStatic(task, "cloud", TASK_STACK(1320), NULL, 2, stack, &tcb);
 }

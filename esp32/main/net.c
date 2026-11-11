@@ -654,7 +654,6 @@ static void startup(void)
         ledui_offline(true);
     }
     ledui_request(LED_READY_IDLE);
-    ledui_request(LED_CONFIRMATION);
     player_prompt(0, true);
 }
 

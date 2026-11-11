@@ -87,6 +87,10 @@ void cloud_sync_abort(void);
  * wait). */
 bool cloud_sync_running(void);
 
+/* True once a freshness check session has ended in this start, other than
+ * by a cancel: an extension server has sent its hello by then. */
+bool cloud_sync_ended(void);
+
 /* True while figure events must wait (online round or synchronisation). */
 bool cloud_holds_figures(void);
 void cloud_sync_request(bool user);
