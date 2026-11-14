@@ -50,7 +50,9 @@ uint8_t gres_command(const uint8_t *arg, unsigned n);
 
 /* After the hello: one of the positions stored while the server could not
  * be told, reported once the earlier records have been written to the log
- * connection, and marked as sent; true while some may still be due. */
-bool gres_backlog(void);
+ * connection, and marked as sent; true while some may still be due.
+ * During a playback (playing) the card is only read: the position is
+ * reported, and marked later by a pass without playing. */
+bool gres_backlog(bool playing);
 
 #endif

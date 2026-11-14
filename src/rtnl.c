@@ -465,6 +465,11 @@ bool log_connected(void)
     return sock >= 0;
 }
 
+bool log_pending(void)
+{
+    return sock < 0 && !attempts && net_session() && net_state() >= 4;
+}
+
 /* The count of failed attempts restarts and the next attempt
  * waits 1000 + 1000 * 2^0 ms. */
 static void close_log(const char *why)

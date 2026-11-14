@@ -670,6 +670,7 @@ bool ext_state_get(const uint8_t uid[8], ext_state_t *out)
         return false;
     }
     bool found = false;
+    uint32_t below = uid ? 0 : out->sequence;
     for (unsigned i = 0; i < STATE_RECORDS; i++)
     {
         uint8_t r[32];
@@ -680,7 +681,7 @@ bool ext_state_get(const uint8_t uid[8], ext_state_t *out)
             break;
         }
         if (ext_state_unpack(r, &s) &&
-            (uid ? !memcmp(s.uid, uid, 8) : (s.flags & EXT_STATE_UNREPORTED) != 0) &&
+            (uid ? !memcmp(s.uid, uid, 8) : (s.flags & EXT_STATE_UNREPORTED) && s.sequence < below) &&
             (!found || s.sequence > out->sequence))
         {
             *out = s;

@@ -1569,10 +1569,10 @@ void net_start(void)
 {
     /* 640 words: the restart path holds a function record
      * and debug output on top of the driver calls. */
-    static StackType_t stack[536]; /* worst case 1712 B, 1560 B without a panic (make stackcheck) */
+    static StackType_t stack[520]; /* worst case 1712 B, 1560 B without a panic (make stackcheck) */
     static StaticTask_t tcb;
     queue = xQueueCreateStatic(8, sizeof(event_t), queue_buf, &queue_mem);
     done = xSemaphoreCreateBinaryStatic(&done_mem);
     osi_spawn_task_start();
-    net_task = xTaskCreateStatic(task, "net", 536, NULL, 3, stack, &tcb);
+    net_task = xTaskCreateStatic(task, "net", 520, NULL, 3, stack, &tcb);
 }

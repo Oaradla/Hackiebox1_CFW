@@ -110,6 +110,7 @@ UBaseType_t uxTaskGetStackHighWaterMark(TaskHandle_t t)
 uint32_t tick_ms(void) { return sim_ms; }
 static bool log_open;
 bool log_connected(void) { return log_open; }
+bool log_pending(void) { return !log_open && getenv("LOG_PENDING") != NULL; }
 bool log_sent(void) { return log_open; }
 void tick_wait(uint32_t n) { sim_ms += n; }
 void monitor_mark(activity_t a) { (void)a; }
@@ -365,7 +366,12 @@ void log_event(log_event_t t, const uint8_t *u)
     printf("[%6u] EVENT %d\n", sim_ms, t);
 }
 void sound_chime(chime_t c) { printf("[%6u] CHIME %d\n", sim_ms, c); }
-uint8_t net_state(void) { return 6; }
+static bool joining(void)
+{
+    const char *j = getenv("JOIN_MS");
+    return j && sim_ms < (uint32_t)atoi(j);
+}
+uint8_t net_state(void) { return joining() ? 0 : 6; }
 void power_off_soon(void) { printf("[%6u] STUB power-off requested\n", sim_ms); }
 void power_idle_minutes(uint16_t battery, uint16_t station)
 {
@@ -620,6 +626,10 @@ static void act(char w)
         printf("--- global file from the server: %d\n", ext_store(f, 8 + (unsigned)n));
         break;
     }
+    case 'e':
+        printf("--- hello, log connection closed\n");
+        ext_hello();
+        break;
     case 'h':
         printf("--- hello, log connection open\n");
         log_open = true;

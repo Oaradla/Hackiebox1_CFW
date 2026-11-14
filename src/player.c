@@ -454,6 +454,7 @@ uint32_t player_decode_ms;
 static int16_t *out;
 static unsigned out_frames;
 static uint32_t heard, heard_reported; /* content frames output, at 16 kHz */
+static bool backlog_playing;           /* late positions may still be reported during this playback */
 
 static void read_ahead(void);
 
@@ -1612,6 +1613,10 @@ static void play_content(void)
             log_event(EVT_PLAYBACK_STARTED, uid_playing); /* type 12 */
         }
         started = content_read = true;
+        if (backlog_playing && !prompt_mode)
+        {
+            backlog_playing = gres_backlog(true);
+        }
         if (!prompt_mode && heard - heard_reported >= 30u * 16000u)
         {
             heard_reported = heard;
@@ -1976,6 +1981,7 @@ static void play_file(const uint8_t uid[8])
     jump_start = 0;
     end_pos = size;
     heard = heard_reported = 0;
+    backlog_playing = backlog_due;
     bool ref = resume_names(uid) && resume.block;
     uint32_t resume_j = ext_start(uid, ref);
     if (downloading)
@@ -2095,6 +2101,23 @@ static bool wait_download(bool *removed, uint32_t need)
     }
 }
 
+/* A connection that is just being set up is waited for, briefly; true when
+ * the figure went meanwhile. */
+static bool connection_wait(bool *removed)
+{
+    uint32_t t0 = tick_ms();
+    uint8_t s;
+    while (!net_offline() && ((s = net_state()) == 0 || s == 3) && tick_ms() - t0 < 5000)
+    {
+        monitor_mark(ACT_SD);
+        if (prep_poll(removed))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* Global resume: asks the server for the figure's position and stores
  * it, waiting while the box is about to reach the server; false when the
  * figure went meanwhile. */
@@ -2125,9 +2148,9 @@ static bool position_wait(const uint8_t uid[8])
                 gres_query(&r);
                 asked = tick_ms() | 1;
             }
-            else if (net_offline() || net_setup_active() || ext_hello_received() || cloud_sync_ended() ||
+            else if (net_offline() || net_setup_active() || (ext_hello_received() ? !log_pending() : cloud_sync_ended()) ||
                      net_state() == 1 || net_state() == 2 || net_state() == 5 || tick_ms() - t0 >= 20000)
-            { /* no network, a failed one, a server without the extension or no log connection */
+            { /* no network, a failed one, a server without the extension or a failed log connection */
                 break;
             }
         }
@@ -2246,6 +2269,7 @@ static void start_content(const uint8_t uid[8], const uint8_t *token)
     }
 
     ledui_request(LED_CONTENT_DOWNLOAD);
+    bool removed = false;
     if (s == TAF_INCOMPLETE && cloud_content_running(uid))
     {
         /* The download goes on after a removal and is only cancelled by
@@ -2254,14 +2278,13 @@ static void start_content(const uint8_t uid[8], const uint8_t *token)
          * release the TLS session of the dropped one. */
         debug_printf("pl: download running at %lu, follows\n", (unsigned long)cloud_dl.pos);
     }
-    else
+    else if (fallback || !connection_wait(&removed))
     {
         debug_verbose("player: requesting the content from offset %lu\n", (unsigned long)offset);
         cloud_content(uid, token, offset, if_range);
     }
     dl_serial = cloud_dl.serial;
-    bool removed;
-    if (!wait_download(&removed, position_need(uid)))
+    if (removed || power_off_wanted || !wait_download(&removed, position_need(uid)))
     {
         if (removed || power_off_wanted)
         {
@@ -2758,7 +2781,7 @@ static void task(void *arg)
         }
         if (backlog_due)
         {
-            backlog_due = gres_backlog();
+            backlog_due = gres_backlog(false);
         }
         event_t e;
         /* Idle: chapter and wind have no effect; the progress mark at least

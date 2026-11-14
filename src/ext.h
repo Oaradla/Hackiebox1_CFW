@@ -216,8 +216,9 @@ void ext_state_pack(const ext_state_t *s, uint8_t out[32]);
 /* false when the record is free (sequence 0 or check wrong). */
 bool ext_state_unpack(const uint8_t in[32], ext_state_t *s);
 
-/* The record of uid in /ext/STATE.BIN, for uid NULL a record with
- * EXT_STATE_UNREPORTED; false when there is none. */
+/* The record of uid in /ext/STATE.BIN, for uid NULL the newest record with
+ * EXT_STATE_UNREPORTED and a sequence below out->sequence; false when
+ * there is none. */
 bool ext_state_get(const uint8_t uid[8], ext_state_t *out);
 /* Writes s (its sequence is set to one above the highest in the file)
  * into the record of its UID, else the first free, else the oldest. */

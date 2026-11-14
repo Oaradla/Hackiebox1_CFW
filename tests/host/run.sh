@@ -36,6 +36,16 @@ D=$B/dcard; rm -rf $D && mkdir -p $D/CONTENT/D4C3B2A1
 CLOUD=dl:$TAF $B/player_test $D "0S,0P,30000R" > $B/download.log
 grep "download done\|download complete\|CHIME 7" $B/download.log
 grep -q "CHIME 7" $B/download.log || { echo "FAIL: no chime 7 after the download"; exit 1; }
+echo "== player: a connection being set up is waited for before the content request, at most 5 s"
+rm -rf $D && mkdir -p $D/CONTENT/D4C3B2A1
+JOIN_MS=2000 CLOUD=dl:$TAF $B/player_test $D "0S,0P,30000R" > $B/join.log
+grep -q "^\[  20[0-9][0-9]\] STUB cloud_content .* downloading" $B/join.log || { echo "FAIL: content not requested when the connection came"; exit 1; }
+rm -rf $D && mkdir -p $D/CONTENT/D4C3B2A1
+JOIN_MS=60000 $B/player_test $D "0S,0P,8000R" > $B/nojoin.log
+grep "STUB cloud_content\|sound prompt" $B/nojoin.log
+grep -q "^\[  50[0-9][0-9]\] STUB cloud_content .* fails" $B/nojoin.log || { echo "FAIL: no bounded wait for the connection"; exit 1; }
+IDLETIME=1 JOIN_MS=60000 $B/player_test $D "0S,0P,2000R,8000R" > $B/joinrm.log
+grep -q "STUB cloud_content" $B/joinrm.log && { echo "FAIL: content requested after the removal"; exit 1; }
 echo "== player: slow download, read ahead into the lent memory, winding meanwhile"
 rm -rf $D && mkdir -p $D/CONTENT/D4C3B2A1
 CLOUD=dl:$TAF DLRATE=200 $B/player_test $D "0S,0P,2000F,3000B,40000R" > $B/readahead.log
@@ -101,11 +111,17 @@ xcard; python3 $T/player/tbs.py $X profile $F gres=1
 IDLETIME=1 pt $X "0S,0P,40000R" > $B/g1.log
 grep -q "pl: position -2 after 20000 ms" $B/g1.log || { echo "FAIL: no 20 s wait without a server"; exit 1; }
 python3 $T/player/tbs.py $X showstate | grep -q "flags 2 base 0 listened 12" || { echo "FAIL: position not kept as unreported"; exit 1; }
-rm -rf $B/xcard1 && cp -r $X $B/xcard1
+rm -rf $B/xcard1 $B/xcard2 && cp -r $X $B/xcard1 && cp -r $X $B/xcard2
 IDLETIME=1 pt $B/xcard1 "0S,0h,0i,0i" > $B/g1b.log
 grep -q "function 32263" $B/g1b.log && python3 $T/player/tbs.py $B/xcard1 showstate | grep -q "flags 0 base 0 listened 12" || { echo "FAIL: unreported position not sent after the hello without a placement"; exit 1; }
+IDLETIME=1 pt $B/xcard2 "0S,0K,1000h,20000R" > $B/g1f.log
+[ "$(grep -o "function 32263\|end of stream\|^--- remove" $B/g1f.log | tr '\n' ' ')" = "function 32263 end of stream function 32263 --- remove " ] && python3 $T/player/tbs.py $B/xcard2 showstate | grep -q "flags 0 base 0 listened 12" || { echo "FAIL: unreported position not sent during another playback, or sent twice"; exit 1; }
 SYNC_ENDED=1 IDLETIME=1 pt $B/xcard1 "0S,0P,5000R" > $B/g1c.log
 grep -q "pl: position -2 after 0 ms" $B/g1c.log || { echo "FAIL: waited for a server without the extension"; exit 1; }
+IDLETIME=1 pt $B/xcard1 "0S,0e,0P,5000R" > $B/g1d.log
+grep -q "pl: position -2 after 0 ms" $B/g1d.log || { echo "FAIL: waited after a failed log connection"; exit 1; }
+LOG_PENDING=1 IDLETIME=1 pt $B/xcard1 "0S,0e,0P,1500h,1800k,5000R" > $B/g1e.log
+grep -q "pl: position 1 after 1[89][0-9][0-9] ms" $B/g1e.log || { echo "FAIL: no wait for the log connection still to open"; exit 1; }
 GRES_AID=00c0ffee GRES_POS=20 IDLETIME=1 pt $X "0S,0h,0P,300a,3300R" > $B/g2.log
 grep "function 3226[34]\|position\|stored position" $B/g2.log
 [ "$(grep -o "function 3226[34]" $B/g2.log | tr '\n' ' ')" = "function 32263 function 32264 function 32263 " ] || { echo "FAIL: late report, query, report"; exit 1; }

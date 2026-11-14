@@ -110,18 +110,33 @@ uint8_t gres_command(const uint8_t *arg, unsigned n)
     return rc;
 }
 
-bool gres_backlog(void)
+/* Sequences of the records reported during a playback, not marked yet;
+ * none while sent_high is 0. */
+static uint32_t sent_low, sent_high;
+
+bool gres_backlog(bool playing)
 {
     ext_state_t r;
     if (!gres_online() || !log_sent())
     {
         return true;
     }
+    r.sequence = playing && sent_high ? sent_low : 0xFFFFFFFFu;
     if (!ext_state_get(NULL, &r))
     {
+        sent_high = playing ? sent_high : 0;
         return false;
     }
-    record(32263, &r, true, GRES_LATE);
+    if (!sent_high || r.sequence < sent_low || r.sequence > sent_high)
+    {
+        record(32263, &r, true, GRES_LATE);
+    }
+    if (playing)
+    {
+        sent_high = sent_high ? sent_high : r.sequence;
+        sent_low = r.sequence;
+        return true;
+    }
     r.flags &= (uint8_t)~EXT_STATE_UNREPORTED;
     if (!ext_state_put(&r))
     {

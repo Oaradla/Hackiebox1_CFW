@@ -57,6 +57,10 @@ void log_round_done(uint32_t s);
 /* True while a log connection is open. */
 bool log_connected(void);
 
+/* True while the log connection is closed and no attempt to open it has
+ * failed since: the next one is still to come. */
+bool log_pending(void);
+
 /* True while a log connection is open and every record made so far has
  * been written to it. */
 bool log_sent(void);

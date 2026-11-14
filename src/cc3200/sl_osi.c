@@ -398,7 +398,7 @@ static void spawn_task(void *arg)
     }
 }
 
-#define SPAWN_STACK 272 /* worst case 816 B, 704 B without a panic (make stackcheck) */
+#define SPAWN_STACK 224 /* worst case 816 B, 704 B without a panic (make stackcheck) */
 
 void osi_spawn_task_start(void)
 {
