@@ -1,0 +1,26 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='980' height='360' viewBox='0 0 980 360'><defs><marker id='a4a5060' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='8' markerHeight='8' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#4a5060'/></marker></defs>
+<rect width='980' height='360' rx='12' fill='#ffffff'/>
+<text x='24' y='38' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='20' font-weight='600' fill='#1f2430'>Wohin eine Einstellung geht</text>
+<rect x='30' y='90' width='200' height='90' rx='10' fill='#fff4e0' stroke='#d08a14' stroke-width='2'/>
+<text x='130.0' y='122.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>Weboberfläche</text>
+<text x='130.0' y='140.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>Einstellungen von Box,</text>
+<text x='130.0' y='158.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>Tonie oder Event-Tag</text>
+<rect x='290' y='90' width='200' height='90' rx='10' fill='#e6f6ee' stroke='#2f9a5f' stroke-width='2'/>
+<text x='390.0' y='122.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>teddyCloud</text>
+<text x='390.0' y='140.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>speichert sie,</text>
+<text x='390.0' y='158.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>baut Einstellungsdateien</text>
+<rect x='550' y='90' width='180' height='90' rx='10' fill='#e8f0fe' stroke='#3b6fd8' stroke-width='2'/>
+<text x='640.0' y='122.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>Box</text>
+<text x='640.0' y='140.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>holt sie beim</text>
+<text x='640.0' y='158.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>Freshness-Check</text>
+<rect x='790' y='90' width='160' height='90' rx='10' fill='#f1ecfb' stroke='#7b55c7' stroke-width='2'/>
+<text x='870.0' y='131.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>SD-Karte</text>
+<text x='870.0' y='149.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>wirkt auch offline</text>
+<path d='M230,135 L290,135' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<path d='M490,135 L550,135' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<path d='M730,135 L790,135' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<path d='M640,180 L640,250 L390,250 L390,180' fill='none' stroke='#4a5060' stroke-width='2' stroke-dasharray='6 5' marker-end='url(#a4a5060)'/>
+<text x='515' y='270' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#3a4050'>an der Box geändert (Ohren, Event-Tag):</text>
+<text x='515' y='287' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#3a4050'>zurückgemeldet, die Oberfläche zeigt es</text>
+<text x='30' y='335' text-anchor='start' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='600' fill='#3a4050'>Die Einstellung eines Tonies gewinnt in beide Richtungen gegen die der Box.</text>
+</svg>

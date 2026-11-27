@@ -385,6 +385,8 @@ void power_idle_minutes(uint16_t battery, uint16_t station)
 }
 static bool critical;
 bool power_critical_pending(void) { return critical; }
+static bool low_battery;
+bool power_low_battery(void) { return low_battery; }
 bool power_shutting_down(void) { return false; }
 bool net_offline(void) { return false; }
 bool net_setup_active(void) { return false; }
@@ -551,6 +553,13 @@ static void act(char w)
         critical = true;
         player_prompt(9, false);
         break;
+    case 'w':
+        printf("--- low battery\n");
+        low_battery = true;
+        break;
+    case 'z':
+        printf("--- power lost\n");
+        longjmp(done, 1);
     case 'S':
         printf("--- start-up prompt\n");
         player_prompt(0, false);

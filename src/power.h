@@ -37,6 +37,8 @@ void power_idle_minutes(uint16_t battery, uint16_t station);
  * sound prompt 9, before the figure on the box is evaluated again, so no
  * content starts meanwhile. */
 bool power_critical_pending(void);
+/* The low-battery warning is on. */
+bool power_low_battery(void);
 
 /* After a hibernation exit (or the off state without hibernation): the
  * retained state back into settings, volumes, offline mode and resume

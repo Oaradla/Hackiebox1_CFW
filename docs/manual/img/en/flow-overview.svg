@@ -1,0 +1,28 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1100' height='330' viewBox='0 0 1100 330'><defs><marker id='a4a5060' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='8' markerHeight='8' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#4a5060'/></marker></defs>
+<rect width='1100' height='330' rx='12' fill='#ffffff'/>
+<text x='24' y='38' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='20' font-weight='600' fill='#1f2430'>How the parts work together</text>
+<rect x='30' y='90' width='250' height='150' rx='10' fill='#e8f0fe' stroke='#3b6fd8' stroke-width='2'/>
+<text x='155.0' y='152.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>Toniebox</text>
+<text x='155.0' y='170.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>custom firmware</text>
+<text x='155.0' y='188.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>settings on the SD card</text>
+<rect x='560' y='90' width='250' height='150' rx='10' fill='#e6f6ee' stroke='#2f9a5f' stroke-width='2'/>
+<text x='685.0' y='152.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>teddyCloud</text>
+<text x='685.0' y='170.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>with CFW support</text>
+<text x='685.0' y='188.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>settings, update library</text>
+<rect x='880' y='90' width='200' height='150' rx='10' fill='#fff4e0' stroke='#d08a14' stroke-width='2'/>
+<text x='980.0' y='143.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>Web browser</text>
+<text x='980.0' y='161.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>teddyCloud web UI</text>
+<text x='980.0' y='179.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>settings, remote control,</text>
+<text x='980.0' y='197.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>box update</text>
+<path d='M560,120 L280,120' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<text x='420.0' y='112' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' fill='#3a4050'>freshness check: settings files</text>
+<path d='M280,168 L560,168' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<text x='420.0' y='142' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' fill='#3a4050'>log connection: status, battery,</text>
+<text x='420.0' y='158' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' fill='#3a4050'>commands of the remote control</text>
+<path d='M560,176 L280,176' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<path d='M560,220 L280,220' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<text x='420.0' y='212' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' fill='#3a4050'>update check: firmware image</text>
+<path d='M880,150 L810,150' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<path d='M810,180 L880,180' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<text x='845' y='270' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#3a4050'>you change it here</text>
+</svg>

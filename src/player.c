@@ -1127,6 +1127,8 @@ static void download_watch(void);
  * on). The box counts as idle meanwhile; a removal, a placement, a stop,
  * a prompt or the power-off end the pause without continuing. */
 static void report_now(gres_reason_t reason);
+static void ext_save(const uint8_t uid[8]);
+static bool low_saved; /* the low battery had its first record of this playback */
 
 static void pause_loop(void)
 {
@@ -1617,10 +1619,19 @@ static void play_content(void)
         {
             backlog_playing = gres_backlog(true);
         }
-        if (!prompt_mode && heard - heard_reported >= 30u * 16000u)
+        bool low = power_low_battery();
+        if (!prompt_mode && (heard - heard_reported >= 30u * 16000u || (low && !low_saved)))
         {
             heard_reported = heard;
-            report_now(GRES_PLAYING);
+            if (low)
+            {
+                low_saved = true;
+                ext_save(uid_playing); /* the battery may end the playback without a stop */
+            }
+            else
+            {
+                report_now(GRES_PLAYING);
+            }
         }
         if (!prompt_mode)
         {
@@ -1913,8 +1924,8 @@ static void report_now(gres_reason_t reason)
     }
 }
 
-/* the record after the playback, when something changed. */
-static void ext_stop(const uint8_t uid[8])
+/* the record after the playback, and with a low battery during it. */
+static void ext_save(const uint8_t uid[8])
 {
     if (!content_read)
     {
@@ -1927,14 +1938,9 @@ static void ext_stop(const uint8_t uid[8])
         r.flags |= EXT_STATE_UNREPORTED;
         backlog_due = true;
     }
-    gres_report(&r, x_global, content_ended ? GRES_ENDED : GRES_STOPPED);
+    gres_report(&r, x_global, content_ended ? GRES_ENDED : playing ? GRES_PLAYING
+                                                                   : GRES_STOPPED);
     if (!(x_resume || x_shuffle))
-    {
-        return;
-    }
-    if (xst_ok && xst.audio_id == r.audio_id && xst.position == r.position && xst.seed == r.seed &&
-        xst.index == r.index && xst.chapters == r.chapters && xst.flags == r.flags && xst.base == r.base &&
-        xst.listened == r.listened)
     {
         return;
     }
@@ -1981,6 +1987,7 @@ static void play_file(const uint8_t uid[8])
     jump_start = 0;
     end_pos = size;
     heard = heard_reported = 0;
+    low_saved = false;
     backlog_playing = backlog_due;
     bool ref = resume_names(uid) && resume.block;
     uint32_t resume_j = ext_start(uid, ref);
@@ -2016,7 +2023,7 @@ static void play_file(const uint8_t uid[8])
     {
         ledui_request(LED_READY_IDLE); /* after stop_all the net activity owns the LED */
     }
-    ext_stop(uid);
+    ext_save(uid);
     shuf.on = false;
     if (range_refused)
     {

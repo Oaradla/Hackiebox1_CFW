@@ -239,6 +239,11 @@ bool power_shutting_down(void)
     return shutting_down;
 }
 
+bool power_low_battery(void)
+{
+    return low_battery;
+}
+
 bool power_critical_pending(void)
 {
     return critical_pending;

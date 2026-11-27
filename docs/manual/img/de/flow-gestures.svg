@@ -1,0 +1,23 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='980' height='330' viewBox='0 0 980 330'><defs></defs>
+<rect width='980' height='330' rx='12' fill='#ffffff'/>
+<text x='24' y='38' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='20' font-weight='600' fill='#1f2430'>Gesten, die nur die Custom-Firmware kennt</text>
+<g transform='translate(70,80) rotate(180 60 55)'><rect x='10' y='30' width='100' height='80' rx='14' fill='#5b8def' stroke='#2f5fbf' stroke-width='3'/><path d='M16 34 Q12 4 32 8 Q44 12 40 32Z' fill='#2f5fbf'/><path d='M104 34 Q108 4 88 8 Q76 12 80 32Z' fill='#2f5fbf'/><circle cx='60' cy='52' r='5' fill='#b5f5c8'/></g>
+<path d='M215 120 l40 -14 M215 135 l44 0 M215 150 l40 14' stroke='#d08a14' stroke-width='4' stroke-linecap='round'/>
+<text x='160' y='240' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#3a4050'>Kopfüber klopfen</text>
+<text x='160' y='260' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#3a4050'>Ohren nach unten, seitlich</text>
+<text x='160' y='277' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#3a4050'>klopfen: ganz von vorn,</text>
+<text x='160' y='294' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#3a4050'>mit Zufall: neu gemischt</text>
+<g transform='translate(430,80)'><rect x='10' y='30' width='100' height='80' rx='14' fill='#5b8def' stroke='#2f5fbf' stroke-width='3'/><path d='M16 34 Q12 4 32 8 Q44 12 40 32Z' fill='#c94040'/><path d='M104 34 Q108 4 88 8 Q76 12 80 32Z' fill='#c94040'/><circle cx='60' cy='52' r='5' fill='#b5f5c8'/></g>
+<path d='M450 70 l10 18 M570 70 l-10 18' stroke='#c94040' stroke-width='4' stroke-linecap='round'/>
+<circle cx='490' cy='132' r='9' fill='#b388eb'/>
+<text x='490' y='240' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#3a4050'>Beide Ohren kurz</text>
+<text x='490' y='260' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#3a4050'>zusammen drücken, innerhalb</text>
+<text x='490' y='277' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#3a4050'>2 s loslassen: ausschalten</text>
+<text x='490' y='294' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#7b55c7'>LED einmal lila</text>
+<g transform='translate(760,80)'><rect x='10' y='30' width='100' height='80' rx='14' fill='#5b8def' stroke='#2f5fbf' stroke-width='3'/><path d='M16 34 Q12 4 32 8 Q44 12 40 32Z' fill='#2f5fbf'/><path d='M104 34 Q108 4 88 8 Q76 12 80 32Z' fill='#2f5fbf'/><circle cx='60' cy='52' r='5' fill='#b5f5c8'/></g>
+<circle cx='820' cy='100' r='22' fill='#13a89e'/><path d='M824 86 812 104h8l-3 12 11-18h-8z' fill='#fff'/>
+<path d='M772 70 l8 16 M868 70 l-8 16' stroke='#d08a14' stroke-width='4' stroke-linecap='round'/>
+<text x='820' y='240' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#3a4050'>Event-Tag + Ohren</text>
+<text x='820' y='260' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#3a4050'>die Ohren stellen Limit</text>
+<text x='820' y='277' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#3a4050'>oder LED-Stufe ein</text>
+</svg>

@@ -539,11 +539,17 @@ static void global_actions(void)
     confirm(results, n, ev.e.tones, !(ev.led >= 0 && ev.vol < 0));
 }
 
+/* Place of the chosen LED level in the ears' ring on -> dimmed -> off ->
+ * dimmed permanently -> off permanently, as the level displays are ordered. */
+static unsigned level_ring_pos(void)
+{
+    static const uint8_t pos[7] = {0, 2, 1, 0, 0, 4, 3};
+    return ev.chosen <= 6 ? pos[ev.chosen] : 0;
+}
+
 static void level_display(void)
 {
-    static const led_request_t r[3] = {LED_EXT_LEVEL_ON, LED_EXT_LEVEL_OFF, LED_EXT_LEVEL_DIMMED};
-    unsigned l = ev.chosen & 3u;
-    ledui_request(r[l <= 2 ? l : 0]);
+    ledui_request((led_request_t)(LED_EXT_LEVEL_ON + level_ring_pos()));
 }
 
 static bool place_event(const uint8_t uid[8])
@@ -917,10 +923,8 @@ void xp_ear_level(bool big)
     {
         return;
     }
-    /* the ring on -> dimmed -> off -> on */
-    unsigned next = (ev.chosen & 3) == 0 ? 2 : (ev.chosen & 3) == 2 ? 1
-                                                                    : 0;
-    ev.chosen = (uint8_t)(next ? (ev.chosen & 4) | next : 0); /* a permanent level stays so until on */
+    static const uint8_t ring[5] = {0, 2, 1, 6, 5};
+    ev.chosen = ring[(level_ring_pos() + 1) % 5];
     apply();
     level_display();
 }

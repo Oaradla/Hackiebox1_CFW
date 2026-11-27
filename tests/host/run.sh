@@ -58,6 +58,11 @@ KEY="ext:\|stored position\|shuffle\|SOUND path\|SOUND fade\|SOUND ear\|feedback
 echo "== EXT F1 resume per tag (another figure in between)"
 xcard; python3 $T/player/tbs.py $X profile $F resume=1
 pt $X "0S,0P,5000R,0K,8000R,0P,12000R" | grep "$KEY\|start position"; python3 $T/player/tbs.py $X showstate
+echo "== EXT F1 resume: with a low battery the position is stored during the playback"
+xcard; python3 $T/player/tbs.py $X profile $F resume=1
+pt $X "0S,0P,8000z" > /dev/null; python3 $T/player/tbs.py $X showstate | grep -q "position [1-9]" && { echo "FAIL: position stored without a low battery"; touch $B/player.failed; }
+pt $X "0S,0P,5000w,8000z" > /dev/null; python3 $T/player/tbs.py $X showstate | tee $B/lowbat.log
+grep -q "position [1-9]" $B/lowbat.log || { echo "FAIL: no position stored with a low battery"; touch $B/player.failed; }
 echo "== EXT F2 shuffle and F6 speaker limit 4"
 xcard; python3 $T/player/tbs.py $X profile $F shuffle=1 spk=4
 pt $X "0S,0P,3000R,0P,6000F,8000B,80000R" | grep "$KEY\|limits 4"; python3 $T/player/tbs.py $X showstate

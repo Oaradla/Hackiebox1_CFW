@@ -1,0 +1,27 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1000' height='400' viewBox='0 0 1000 400'><defs><marker id='a4a5060' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='8' markerHeight='8' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#4a5060'/></marker><marker id='ac94040' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='8' markerHeight='8' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#c94040'/></marker></defs>
+<rect width='1000' height='400' rx='12' fill='#ffffff'/>
+<text x='24' y='38' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='20' font-weight='600' fill='#1f2430'>How a CC3200 box starts</text>
+<rect x='30' y='150' width='200' height='80' rx='10' fill='#e8f0fe' stroke='#3b6fd8' stroke-width='2'/>
+<text x='130.0' y='186.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>Preloader</text>
+<text x='130.0' y='204.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>in the flash (/sys/mcuimg.bin)</text>
+<rect x='290' y='140' width='250' height='100' rx='10' fill='#f1ecfb' stroke='#7b55c7' stroke-width='2'/>
+<text x='415.0' y='177.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>SD bootloader</text>
+<text x='415.0' y='195.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>HackieboxNG with trial start</text>
+<text x='415.0' y='213.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>reads ngCfg.json + ngstate.bin</text>
+<rect x='680' y='60' width='300' height='100' rx='10' fill='#e6f6ee' stroke='#2f9a5f' stroke-width='2'/>
+<text x='830.0' y='97.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>Custom firmware</text>
+<text x='830.0' y='115.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>/revvox/boot/ng-cfw1.bin or -cfw2.bin</text>
+<text x='830.0' y='133.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>new build: one trial start</text>
+<rect x='680' y='250' width='300' height='80' rx='10' fill='#f4f5f7' stroke='#7a8290' stroke-width='2'/>
+<text x='830.0' y='286.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>Original firmware</text>
+<text x='830.0' y='304.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>stays unchanged in the flash</text>
+<path d='M230,190 L290,190' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<path d='M540,170 L610,170 L610,110 L680,110' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<text x='610' y='50' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' fill='#3a4050'>slot cfw1 / cfw2</text>
+<path d='M540,210 L610,210 L610,290 L680,290' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<text x='610' y='360' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' fill='#3a4050'>slot ofw1 (no stateFile)</text>
+<path d='M700,160 L700,200 L548,200' fill='none' stroke='#c94040' stroke-width='2' stroke-dasharray='6 5' marker-end='url(#ac94040)'/>
+<text x='290' y='275' text-anchor='start' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='600' fill='#c94040'>trial start fails:</text>
+<text x='290' y='293' text-anchor='start' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#c94040'>back to the previous build</text>
+<text x='290' y='311' text-anchor='start' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#c94040'>the box reports the result in its hello</text>
+</svg>

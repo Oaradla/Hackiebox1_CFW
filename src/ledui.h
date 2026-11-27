@@ -39,6 +39,8 @@ typedef enum
     LED_EXT_LEVEL_ON, /* level display */
     LED_EXT_LEVEL_DIMMED,
     LED_EXT_LEVEL_OFF,
+    LED_EXT_LEVEL_DIMMED_PERM,
+    LED_EXT_LEVEL_OFF_PERM,
     /* others */
     LED_COLOUR_CHANGE,
     LED_ACTIVITY,

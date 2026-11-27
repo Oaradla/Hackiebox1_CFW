@@ -242,12 +242,12 @@ static bool oneshot; /* a one-shot pattern or colour change is current */
 
 static bool is_oneshot(led_request_t r)
 {
-    return r >= LED_CONFIRMATION && r <= LED_EXT_LEVEL_OFF;
+    return r >= LED_CONFIRMATION && r <= LED_EXT_LEVEL_OFF_PERM;
 }
 
 static bool is_ext(led_request_t r)
 {
-    return r >= LED_EXT_BLINK && r <= LED_EXT_LEVEL_OFF;
+    return r >= LED_EXT_BLINK && r <= LED_EXT_LEVEL_OFF_PERM;
 }
 
 static void ready_begin(void)
@@ -290,11 +290,11 @@ static void blink_begin(rgb_t c, int count, uint32_t fade_after)
 
 static void begin(led_request_t r)
 {
-    if (permanent() && (r == LED_FIRMWARE_DOWNLOAD || r == LED_CONTENT_DOWNLOAD))
+    if (led_level() == 5 && (r == LED_FIRMWARE_DOWNLOAD || r == LED_CONTENT_DOWNLOAD))
     {
-        r = LED_READY_IDLE; /* no download display */
+        r = LED_READY_IDLE; /* off permanently: no download display; dimmed permanently shows it dimmed */
     }
-    bool level_display = r >= LED_EXT_LEVEL_ON && r <= LED_EXT_LEVEL_OFF; /* shows the chosen level as it looks */
+    bool level_display = r >= LED_EXT_LEVEL_ON && r <= LED_EXT_LEVEL_OFF_PERM; /* shows the chosen level as it looks */
     soft = permanent() && r != LED_READY_IDLE && r != LED_READY_PLAYING && !level_display;
     switch (r)
     {
@@ -344,18 +344,15 @@ static void begin(led_request_t r)
     case LED_BATTERY_LOW:
         blink_begin(ORANGE, 10, 0);
         break;
-    case LED_EXT_BLINK:
-    case LED_EXT_LILAC:
-    case LED_EXT_ON:
-    case LED_EXT_OFF:
-    case LED_EXT_MIXED:
-    case LED_EXT_LEVEL_ON:
-    case LED_EXT_LEVEL_DIMMED:
-    case LED_EXT_LEVEL_OFF:
-        ext_begin(r);
-        break;
     default:
-        pat.k = K_NONE;
+        if (is_ext(r))
+        {
+            ext_begin(r);
+        }
+        else
+        {
+            pat.k = K_NONE;
+        }
         break;
     }
 }
@@ -419,50 +416,35 @@ static void apply(led_request_t r)
 
 static void ext_begin(led_request_t r)
 {
+    /* one blink, five blinks, or the level display: one blink for on, two
+     * for dimmed, three for off, four for dimmed permanently, five for off
+     * permanently, then the level */
+    int blinks = r <= LED_EXT_LILAC ? 1 : r >= LED_EXT_LEVEL_ON ? 1 + (int)(r - LED_EXT_LEVEL_ON)
+                                                                : 5;
     seq.n = seq.i = 0;
-    switch (r)
+    for (int i = 0; i < blinks; i++)
     {
-    case LED_EXT_BLINK:
-    case LED_EXT_LILAC:
-        seq_add(r == LED_EXT_BLINK ? TURQUOISE : LILAC, 500);
-        seq_add(OFF, 4500);
-        break;
-    case LED_EXT_ON:
-    case LED_EXT_OFF:
-    case LED_EXT_MIXED:
-        for (int i = 0; i < 5; i++)
-        {
-            bool t = r == LED_EXT_ON || (r == LED_EXT_MIXED && !(i & 1));
-            seq_add(t ? TURQUOISE : LILAC, 500);
-            seq_add(OFF, 500);
-        }
-        break;
-    default:
+        bool t = r != LED_EXT_LILAC && r != LED_EXT_OFF && (r != LED_EXT_MIXED || !(i & 1));
+        seq_add(t ? TURQUOISE : LILAC, 500);
+        seq_add(OFF, 500);
+    }
+    uint16_t rest = (uint16_t)(5000 - 1000 * blinks);
+    if (r == LED_EXT_LEVEL_ON)
     {
-        /* one blink for on, two for dimmed, three for off, then the level */
-        int blinks = r == LED_EXT_LEVEL_ON ? 1 : r == LED_EXT_LEVEL_DIMMED ? 2
-                                                                           : 3;
-        for (int i = 0; i < blinks; i++)
-        {
-            seq_add(TURQUOISE, 500);
-            seq_add(OFF, 500);
-        }
-        uint16_t rest = (uint16_t)(5000 - 1000 * blinks);
-        if (r == LED_EXT_LEVEL_ON)
-        {
-            seq_add(TURQUOISE, rest);
-        }
-        else if (r == LED_EXT_LEVEL_DIMMED)
+        seq_add(TURQUOISE, rest);
+    }
+    else if (r == LED_EXT_LEVEL_DIMMED || r == LED_EXT_LEVEL_DIMMED_PERM)
+    {
+        if (r == LED_EXT_LEVEL_DIMMED)
         {
             seq_add(TURQUOISE, 1000);
-            seq_add(TURQUOISE_DIM, (uint16_t)(rest - 1000));
+            rest = (uint16_t)(rest - 1000);
         }
-        else
-        {
-            seq_add(OFF, rest);
-        }
-        break;
+        seq_add(TURQUOISE_DIM, rest);
     }
+    else
+    {
+        seq_add(OFF, rest);
     }
     pat.k = K_SEQ;
     seq.next = tick_ms() + seq.ms[0];

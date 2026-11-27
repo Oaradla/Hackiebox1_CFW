@@ -1,0 +1,37 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1090' height='480' viewBox='0 0 1090 480'><defs><marker id='a4a5060' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='8' markerHeight='8' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#4a5060'/></marker><marker id='ac94040' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='8' markerHeight='8' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='#c94040'/></marker></defs>
+<rect width='1090' height='480' rx='12' fill='#ffffff'/>
+<text x='24' y='38' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='20' font-weight='600' fill='#1f2430'>Firmware-Update über teddyCloud</text>
+<rect x='30' y='80' width='240' height='90' rx='10' fill='#e6f6ee' stroke='#2f9a5f' stroke-width='2'/>
+<text x='150.0' y='112.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>1  Image in die Bibliothek</text>
+<text x='150.0' y='130.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>Upload oder GitHub-Download</text>
+<text x='150.0' y='148.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>Kanal Release / Beta / Alpha</text>
+<rect x='295' y='80' width='240' height='90' rx='10' fill='#e6f6ee' stroke='#2f9a5f' stroke-width='2'/>
+<text x='415.0' y='112.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>2  Welche Box was bekommt</text>
+<text x='415.0' y='130.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>Manuell: zugewiesenes Image</text>
+<text x='415.0' y='148.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>Automatisch: neuestes des Kanals</text>
+<rect x='560' y='80' width='240' height='90' rx='10' fill='#e8f0fe' stroke='#3b6fd8' stroke-width='2'/>
+<text x='680.0' y='112.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>3  Die Box fragt</text>
+<text x='680.0' y='130.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>beim Start oder sofort</text>
+<text x='680.0' y='148.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>mit „Jetzt“ (Fernbedienung)</text>
+<rect x='825' y='80' width='240' height='90' rx='10' fill='#e8f0fe' stroke='#3b6fd8' stroke-width='2'/>
+<text x='945.0' y='121.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>4  Download</text>
+<text x='945.0' y='139.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>in den freien Slot</text>
+<rect x='825' y='220' width='240' height='80' rx='10' fill='#f1ecfb' stroke='#7b55c7' stroke-width='2'/>
+<text x='945.0' y='256.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>5  Probestart</text>
+<text x='945.0' y='274.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>des neuen Builds</text>
+<rect x='470' y='370' width='240' height='80' rx='10' fill='#e6f6ee' stroke='#2f9a5f' stroke-width='2'/>
+<text x='590.0' y='406.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>Bestätigt</text>
+<text x='590.0' y='424.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>der Build bleibt</text>
+<rect x='825' y='370' width='240' height='90' rx='10' fill='#fde9e9' stroke='#c94040' stroke-width='2'/>
+<text x='945.0' y='402.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='15' font-weight='600' fill='#1f2430'>Zurückgerollt</text>
+<text x='945.0' y='420.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>voriger Build läuft wieder;</text>
+<text x='945.0' y='438.0' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' font-weight='400' fill='#1f2430'>wird nicht erneut angeboten</text>
+<path d='M270,125 L295,125' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<path d='M535,125 L560,125' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<path d='M800,125 L825,125' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<path d='M945,170 L945,220' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<path d='M860,300 L860,335 L590,335 L590,370' fill='none' stroke='#4a5060' stroke-width='2' marker-end='url(#a4a5060)'/>
+<text x='720' y='327' text-anchor='middle' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' fill='#3a4050'>startet und meldet sich</text>
+<path d='M1030,300 L1030,370' fill='none' stroke='#c94040' stroke-width='2' marker-end='url(#ac94040)'/>
+<text x='1022' y='340' text-anchor='end' font-family='Segoe UI, Helvetica, Arial, sans-serif' font-size='13' fill='#3a4050'>kommt nicht hoch</text>
+</svg>
